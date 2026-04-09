@@ -1,6 +1,8 @@
-import { X, ChevronDown, Bookmark } from "lucide-react";
+import { useState } from "react";
+import { X, Bookmark, ChevronRight } from "lucide-react";
 import type { ModelParams } from "@/types/chat";
 import { DEFAULT_MODELS, DEFAULT_PRESETS } from "@/types/chat";
+import ModelSelectorModal from "./ModelSelectorModal";
 
 interface Props {
   model: string;
@@ -48,6 +50,9 @@ function Slider({
 }
 
 export default function ControlPanel({ model, onModelChange, systemPrompt, onSystemPromptChange, params, onParamsChange, open, onClose }: Props) {
+  const [modelModalOpen, setModelModalOpen] = useState(false);
+  const modelInfo = DEFAULT_MODELS.find((m) => m.id === model);
+
   const updateParam = (key: keyof ModelParams, value: number) => {
     onParamsChange({ ...params, [key]: value });
   };
@@ -70,23 +75,22 @@ export default function ControlPanel({ model, onModelChange, systemPrompt, onSys
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
-          {/* Model Selector */}
+          {/* Model Selector - opens modal */}
           <div className="space-y-2">
             <label className="text-xs font-semibold tracking-wider text-text-tertiary">MODEL</label>
-            <div className="relative">
-              <select
-                value={model}
-                onChange={(e) => onModelChange(e.target.value)}
-                className="w-full appearance-none rounded-md border border-border bg-surface-2 px-3 py-2.5 pr-8 font-mono text-sm text-foreground focus:border-primary/40 focus:outline-none"
-              >
-                {DEFAULT_MODELS.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name} — {m.provider}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
-            </div>
+            <button
+              onClick={() => setModelModalOpen(true)}
+              className="flex w-full items-center justify-between rounded-md border border-border bg-surface-2 px-3 py-2.5 text-left transition-colors hover:border-primary/30"
+            >
+              <div className="flex items-center gap-2">
+                {modelInfo && <span className="text-base">{modelInfo.icon}</span>}
+                <div>
+                  <span className="block text-sm font-medium text-foreground">{modelInfo?.name ?? model}</span>
+                  <span className="block font-mono text-[10px] text-text-tertiary">{modelInfo?.provider}</span>
+                </div>
+              </div>
+              <ChevronRight size={14} className="text-text-tertiary" />
+            </button>
           </div>
 
           {/* Presets */}
@@ -131,11 +135,16 @@ export default function ControlPanel({ model, onModelChange, systemPrompt, onSys
             <Slider label="Temperature" value={params.temperature} onChange={(v) => updateParam("temperature", v)} min={0} max={2} step={0.05} />
             <Slider label="Top P" value={params.topP} onChange={(v) => updateParam("topP", v)} min={0} max={1} step={0.05} />
             <Slider label="Max Tokens" value={params.maxTokens} onChange={(v) => updateParam("maxTokens", v)} min={256} max={16384} step={256} />
-            <Slider label="Freq. Penalty" value={params.frequencyPenalty} onChange={(v) => updateParam("frequencyPenalty", v)} min={0} max={2} step={0.05} />
-            <Slider label="Pres. Penalty" value={params.presencePenalty} onChange={(v) => updateParam("presencePenalty", v)} min={0} max={2} step={0.05} />
           </div>
         </div>
       </aside>
+
+      <ModelSelectorModal
+        open={modelModalOpen}
+        onClose={() => setModelModalOpen(false)}
+        currentModel={model}
+        onSelect={onModelChange}
+      />
     </>
   );
 }

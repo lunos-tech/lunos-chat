@@ -27,14 +27,16 @@ export interface ModelConfig {
   maxTokens: number;
   supportsStreaming: boolean;
   supportsImages: boolean;
+  icon: string;
+  inputPrice: number;   // per 1M tokens in USD
+  outputPrice: number;  // per 1M tokens in USD
+  avgTps: number;       // average tokens per second
 }
 
 export interface ModelParams {
   temperature: number;
   topP: number;
   maxTokens: number;
-  frequencyPenalty: number;
-  presencePenalty: number;
 }
 
 export interface PromptPreset {
@@ -45,20 +47,18 @@ export interface PromptPreset {
 }
 
 export const DEFAULT_MODELS: ModelConfig[] = [
-  { id: "gpt-4o", name: "GPT-4o", provider: "OpenAI", description: "Most capable, multimodal", maxTokens: 128000, supportsStreaming: true, supportsImages: true },
-  { id: "gpt-4o-mini", name: "GPT-4o Mini", provider: "OpenAI", description: "Fast and efficient", maxTokens: 128000, supportsStreaming: true, supportsImages: true },
-  { id: "claude-3.5-sonnet", name: "Claude 3.5 Sonnet", provider: "Anthropic", description: "Balanced performance", maxTokens: 200000, supportsStreaming: true, supportsImages: true },
-  { id: "claude-3-opus", name: "Claude 3 Opus", provider: "Anthropic", description: "Highest capability", maxTokens: 200000, supportsStreaming: true, supportsImages: true },
-  { id: "gemini-pro", name: "Gemini Pro", provider: "Google", description: "Versatile and fast", maxTokens: 1000000, supportsStreaming: true, supportsImages: true },
-  { id: "llama-3.1-70b", name: "Llama 3.1 70B", provider: "Meta", description: "Open source powerhouse", maxTokens: 128000, supportsStreaming: true, supportsImages: false },
+  { id: "gpt-4o", name: "GPT-4o", provider: "OpenAI", description: "Most capable, multimodal", maxTokens: 128000, supportsStreaming: true, supportsImages: true, icon: "🟢", inputPrice: 2.50, outputPrice: 10.00, avgTps: 95 },
+  { id: "gpt-4o-mini", name: "GPT-4o Mini", provider: "OpenAI", description: "Fast and efficient", maxTokens: 128000, supportsStreaming: true, supportsImages: true, icon: "🟢", inputPrice: 0.15, outputPrice: 0.60, avgTps: 140 },
+  { id: "claude-3.5-sonnet", name: "Claude 3.5 Sonnet", provider: "Anthropic", description: "Balanced performance", maxTokens: 200000, supportsStreaming: true, supportsImages: true, icon: "🟠", inputPrice: 3.00, outputPrice: 15.00, avgTps: 82 },
+  { id: "claude-3-opus", name: "Claude 3 Opus", provider: "Anthropic", description: "Highest capability", maxTokens: 200000, supportsStreaming: true, supportsImages: true, icon: "🟠", inputPrice: 15.00, outputPrice: 75.00, avgTps: 40 },
+  { id: "gemini-pro", name: "Gemini Pro", provider: "Google", description: "Versatile and fast", maxTokens: 1000000, supportsStreaming: true, supportsImages: true, icon: "🔵", inputPrice: 1.25, outputPrice: 5.00, avgTps: 110 },
+  { id: "llama-3.1-70b", name: "Llama 3.1 70B", provider: "Meta", description: "Open source powerhouse", maxTokens: 128000, supportsStreaming: true, supportsImages: false, icon: "🟣", inputPrice: 0.59, outputPrice: 0.79, avgTps: 70 },
 ];
 
 export const DEFAULT_PARAMS: ModelParams = {
   temperature: 0.7,
   topP: 1,
   maxTokens: 4096,
-  frequencyPenalty: 0,
-  presencePenalty: 0,
 };
 
 export const DEFAULT_PRESETS: PromptPreset[] = [
