@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Bookmark, ChevronRight } from "lucide-react";
+import { X, Bookmark, ChevronRight, ChevronDown } from "lucide-react";
 import type { ModelParams } from "@/types/chat";
 import { DEFAULT_MODELS, DEFAULT_PRESETS } from "@/types/chat";
 import ModelSelectorModal from "./ModelSelectorModal";
@@ -93,24 +93,28 @@ export default function ControlPanel({ model, onModelChange, systemPrompt, onSys
             </button>
           </div>
 
-          {/* Presets */}
+          {/* Presets Dropdown */}
           <div className="space-y-2">
-            <label className="text-xs font-semibold tracking-wider text-text-tertiary">PRESETS</label>
-            <div className="grid grid-cols-2 gap-1.5">
-              {DEFAULT_PRESETS.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => onSystemPromptChange(p.prompt)}
-                  className={`flex items-center gap-1.5 rounded-md border px-2.5 py-2 text-left text-xs transition-colors ${
-                    systemPrompt === p.prompt
-                      ? "border-primary/40 bg-accent-subtle text-foreground"
-                      : "border-border bg-surface-2 text-text-secondary hover:border-border hover:bg-surface-3"
-                  }`}
-                >
-                  <span>{p.icon}</span>
-                  <span className="truncate">{p.name}</span>
-                </button>
-              ))}
+            <label className="text-xs font-semibold tracking-wider text-text-tertiary">PRESET</label>
+            <div className="relative">
+              <select
+                value={DEFAULT_PRESETS.find((p) => p.prompt === systemPrompt)?.id ?? "custom"}
+                onChange={(e) => {
+                  const preset = DEFAULT_PRESETS.find((p) => p.id === e.target.value);
+                  if (preset) onSystemPromptChange(preset.prompt);
+                }}
+                className="w-full appearance-none rounded-md border border-border bg-surface-2 px-3 py-2.5 pr-8 text-sm text-foreground focus:border-primary/40 focus:outline-none"
+              >
+                {DEFAULT_PRESETS.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.icon} {p.name}
+                  </option>
+                ))}
+                {!DEFAULT_PRESETS.some((p) => p.prompt === systemPrompt) && (
+                  <option value="custom" disabled>Custom</option>
+                )}
+              </select>
+              <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
             </div>
           </div>
 
