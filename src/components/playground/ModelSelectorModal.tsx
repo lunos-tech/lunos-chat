@@ -233,6 +233,7 @@ export default function ModelSelectorModal({ open, onClose, currentModel, onSele
                           <HighlightText text={m.provider} indices={r.indices.get("provider")} />
                         </span>
                         {isActive && <Check size={14} className="ml-auto text-primary" />}
+                      </div>
                       <div className="mt-2 flex flex-wrap items-center gap-3">
                         <div className="flex items-center gap-1 text-[11px] text-text-tertiary">
                           <DollarSign size={11} />
