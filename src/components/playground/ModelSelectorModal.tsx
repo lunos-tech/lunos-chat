@@ -68,7 +68,6 @@ function scoreModel(query: string, model: ModelConfig): { score: number; indices
     { key: "name", value: model.name, weight: 1 },
     { key: "provider", value: model.provider, weight: 1.5 },
     { key: "id", value: model.id, weight: 2 },
-    { key: "description", value: model.description, weight: 3 },
   ];
 
   let bestScore: number | null = null;
@@ -234,10 +233,6 @@ export default function ModelSelectorModal({ open, onClose, currentModel, onSele
                           <HighlightText text={m.provider} indices={r.indices.get("provider")} />
                         </span>
                         {isActive && <Check size={14} className="ml-auto text-primary" />}
-                      </div>
-                      <p className="mt-0.5 text-xs text-text-secondary">
-                        <HighlightText text={m.description} indices={r.indices.get("description")} />
-                      </p>
                       <div className="mt-2 flex flex-wrap items-center gap-3">
                         <div className="flex items-center gap-1 text-[11px] text-text-tertiary">
                           <DollarSign size={11} />
