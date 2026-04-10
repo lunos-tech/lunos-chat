@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { X, Copy, Check } from "lucide-react";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 interface Props {
   open: boolean;
@@ -10,12 +12,12 @@ interface Props {
 }
 
 const LANGUAGES = [
-  { id: "curl", name: "cURL", icon: "⌘" },
-  { id: "python", name: "Python", icon: "🐍" },
-  { id: "javascript", name: "JavaScript", icon: "🟨" },
-  { id: "typescript", name: "TypeScript", icon: "🔷" },
-  { id: "go", name: "Go", icon: "🔵" },
-  { id: "rust", name: "Rust", icon: "🦀" },
+  { id: "curl", name: "cURL", icon: "⌘", syntax: "bash" },
+  { id: "python", name: "Python", icon: "🐍", syntax: "python" },
+  { id: "javascript", name: "JavaScript", icon: "🟨", syntax: "javascript" },
+  { id: "typescript", name: "TypeScript", icon: "🔷", syntax: "typescript" },
+  { id: "go", name: "Go", icon: "🔵", syntax: "go" },
+  { id: "rust", name: "Rust", icon: "🦀", syntax: "rust" },
 ] as const;
 
 type LangId = (typeof LANGUAGES)[number]["id"];
@@ -236,9 +238,22 @@ export default function CodeSnippetsModal({ open, onClose, model, systemPrompt, 
             {copied ? <Check size={12} className="text-primary" /> : <Copy size={12} />}
             {copied ? "Copied" : "Copy"}
           </button>
-          <pre className="overflow-x-auto rounded-md bg-background p-4 font-mono text-xs leading-relaxed text-foreground/90 border border-border">
-            <code>{code}</code>
-          </pre>
+          <SyntaxHighlighter
+            language={LANGUAGES.find((l) => l.id === activeLang)?.syntax ?? "bash"}
+            style={oneDark}
+            customStyle={{
+              margin: 0,
+              borderRadius: "0.375rem",
+              fontSize: "0.75rem",
+              lineHeight: "1.625",
+              border: "1px solid hsl(220 12% 16%)",
+              background: "hsl(220 14% 6%)",
+            }}
+            showLineNumbers
+            lineNumberStyle={{ color: "hsl(215 12% 28%)", fontSize: "0.65rem" }}
+          >
+            {code}
+          </SyntaxHighlighter>
         </div>
       </div>
     </div>
