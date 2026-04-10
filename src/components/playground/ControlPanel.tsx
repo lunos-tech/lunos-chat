@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { X, Bookmark, ChevronRight, ChevronDown, Code2 } from "lucide-react";
+import { X, Bookmark, ChevronRight, ChevronDown, Code2, Wrench } from "lucide-react";
 import type { ModelParams } from "@/types/chat";
 import { DEFAULT_MODELS, DEFAULT_PRESETS } from "@/types/chat";
 import ModelSelectorModal from "./ModelSelectorModal";
 import CodeSnippetsModal from "./CodeSnippetsModal";
+import ToolsModal, { type ToolDefinition } from "./ToolsModal";
 
 interface Props {
   model: string;
@@ -53,6 +54,8 @@ function Slider({
 export default function ControlPanel({ model, onModelChange, systemPrompt, onSystemPromptChange, params, onParamsChange, open, onClose }: Props) {
   const [modelModalOpen, setModelModalOpen] = useState(false);
   const [snippetsOpen, setSnippetsOpen] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const [tools, setTools] = useState<ToolDefinition[]>([]);
   const modelInfo = DEFAULT_MODELS.find((m) => m.id === model);
 
   const updateParam = (key: keyof ModelParams, value: number) => {
@@ -141,6 +144,19 @@ export default function ControlPanel({ model, onModelChange, systemPrompt, onSys
             <Slider label="Temperature" value={params.temperature} onChange={(v) => updateParam("temperature", v)} min={0} max={2} step={0.05} />
             <Slider label="Top P" value={params.topP} onChange={(v) => updateParam("topP", v)} min={0} max={1} step={0.05} />
             <Slider label="Max Tokens" value={params.maxTokens} onChange={(v) => updateParam("maxTokens", v)} min={256} max={16384} step={256} />
+          </div>
+
+          {/* Tools / Function Calling */}
+          <div className="space-y-2">
+            <label className="text-xs font-semibold tracking-wider text-text-tertiary">TOOLS</label>
+            <button
+              onClick={() => setToolsOpen(true)}
+              className="flex w-full items-center gap-2.5 rounded-md border border-border bg-surface-2 px-3 py-2.5 text-left text-sm font-medium text-foreground transition-colors hover:border-primary/30"
+            >
+              <Wrench size={14} className="text-primary" />
+              {tools.length > 0 ? `${tools.length} tool${tools.length > 1 ? "s" : ""} defined` : "Define Tools"}
+              <ChevronRight size={14} className="ml-auto text-text-tertiary" />
+            </button>
           </div>
 
           {/* Code Snippets */}
