@@ -35,14 +35,15 @@ export default function ChatArea({ session, onSend, onStop, isStreaming }: Props
   const userScrolledUp = useRef(false);
 
   const scrollToBottom = useCallback(() => {
-    if (!userScrolledUp.current) {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (!userScrolledUp.current && bottomRef.current) {
+      bottomRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, []);
 
+  // Scroll on new messages and streaming content updates
   useEffect(() => {
     scrollToBottom();
-  }, [session.messages, scrollToBottom]);
+  }, [session.messages, session.messages[session.messages.length - 1]?.content, scrollToBottom]);
 
   const handleScroll = () => {
     const el = scrollRef.current;
@@ -52,12 +53,14 @@ export default function ChatArea({ session, onSend, onStop, isStreaming }: Props
   };
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col">
-      <div ref={scrollRef} onScroll={handleScroll} className="flex flex-1 flex-col overflow-y-auto">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div ref={scrollRef} onScroll={handleScroll} className="min-h-0 flex-1 overflow-y-auto">
         {session.messages.length === 0 ? (
-          <EmptyState model={session.model} />
+          <div className="flex h-full flex-col">
+            <EmptyState model={session.model} />
+          </div>
         ) : (
-          <div className="flex-1">
+          <div className="pb-4">
             {session.messages.map((msg) => (
               <ChatMessage key={msg.id} message={msg} />
             ))}
