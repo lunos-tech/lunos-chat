@@ -1,0 +1,246 @@
+import { useState } from "react";
+import { X, Copy, Check } from "lucide-react";
+
+interface Props {
+  open: boolean;
+  onClose: () => void;
+  model: string;
+  systemPrompt: string;
+  params: { temperature: number; topP: number; maxTokens: number };
+}
+
+const LANGUAGES = [
+  { id: "curl", name: "cURL", icon: "⌘" },
+  { id: "python", name: "Python", icon: "🐍" },
+  { id: "javascript", name: "JavaScript", icon: "🟨" },
+  { id: "typescript", name: "TypeScript", icon: "🔷" },
+  { id: "go", name: "Go", icon: "🔵" },
+  { id: "rust", name: "Rust", icon: "🦀" },
+] as const;
+
+type LangId = (typeof LANGUAGES)[number]["id"];
+
+function generateSnippet(
+  lang: LangId,
+  model: string,
+  systemPrompt: string,
+  params: { temperature: number; topP: number; maxTokens: number }
+): string {
+  const escaped = (s: string) => s.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n");
+
+  switch (lang) {
+    case "curl":
+      return `curl -X POST https://api.lunos.ai/v1/chat/completions \\
+  -H "Authorization: Bearer $LUNOS_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "${model}",
+    "messages": [
+      {"role": "system", "content": "${escaped(systemPrompt)}"},
+      {"role": "user", "content": "Hello!"}
+    ],
+    "temperature": ${params.temperature},
+    "top_p": ${params.topP},
+    "max_tokens": ${params.maxTokens}
+  }'`;
+
+    case "python":
+      return `import requests
+
+response = requests.post(
+    "https://api.lunos.ai/v1/chat/completions",
+    headers={
+        "Authorization": f"Bearer {LUNOS_API_KEY}",
+        "Content-Type": "application/json",
+    },
+    json={
+        "model": "${model}",
+        "messages": [
+            {"role": "system", "content": "${escaped(systemPrompt)}"},
+            {"role": "user", "content": "Hello!"},
+        ],
+        "temperature": ${params.temperature},
+        "top_p": ${params.topP},
+        "max_tokens": ${params.maxTokens},
+    },
+)
+
+print(response.json())`;
+
+    case "javascript":
+      return `const response = await fetch("https://api.lunos.ai/v1/chat/completions", {
+  method: "POST",
+  headers: {
+    "Authorization": \`Bearer \${LUNOS_API_KEY}\`,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    model: "${model}",
+    messages: [
+      { role: "system", content: "${escaped(systemPrompt)}" },
+      { role: "user", content: "Hello!" },
+    ],
+    temperature: ${params.temperature},
+    top_p: ${params.topP},
+    max_tokens: ${params.maxTokens},
+  }),
+});
+
+const data = await response.json();
+console.log(data);`;
+
+    case "typescript":
+      return `interface ChatResponse {
+  choices: { message: { role: string; content: string } }[];
+}
+
+const response = await fetch("https://api.lunos.ai/v1/chat/completions", {
+  method: "POST",
+  headers: {
+    "Authorization": \`Bearer \${LUNOS_API_KEY}\`,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    model: "${model}",
+    messages: [
+      { role: "system", content: "${escaped(systemPrompt)}" },
+      { role: "user", content: "Hello!" },
+    ],
+    temperature: ${params.temperature},
+    top_p: ${params.topP},
+    max_tokens: ${params.maxTokens},
+  }),
+});
+
+const data: ChatResponse = await response.json();
+console.log(data.choices[0].message.content);`;
+
+    case "go":
+      return `package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"os"
+)
+
+func main() {
+	body, _ := json.Marshal(map[string]interface{}{
+		"model": "${model}",
+		"messages": []map[string]string{
+			{"role": "system", "content": "${escaped(systemPrompt)}"},
+			{"role": "user", "content": "Hello!"},
+		},
+		"temperature": ${params.temperature},
+		"top_p":       ${params.topP},
+		"max_tokens":  ${params.maxTokens},
+	})
+
+	req, _ := http.NewRequest("POST",
+		"https://api.lunos.ai/v1/chat/completions",
+		bytes.NewBuffer(body))
+	req.Header.Set("Authorization", "Bearer "+os.Getenv("LUNOS_API_KEY"))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, _ := http.DefaultClient.Do(req)
+	defer resp.Body.Close()
+	fmt.Println(resp.Status)
+}`;
+
+    case "rust":
+      return `use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
+use serde_json::json;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = reqwest::Client::new();
+    let api_key = std::env::var("LUNOS_API_KEY")?;
+
+    let body = json!({
+        "model": "${model}",
+        "messages": [
+            {"role": "system", "content": "${escaped(systemPrompt)}"},
+            {"role": "user", "content": "Hello!"}
+        ],
+        "temperature": ${params.temperature},
+        "top_p": ${params.topP},
+        "max_tokens": ${params.maxTokens}
+    });
+
+    let res = client
+        .post("https://api.lunos.ai/v1/chat/completions")
+        .header(AUTHORIZATION, format!("Bearer {}", api_key))
+        .header(CONTENT_TYPE, "application/json")
+        .json(&body)
+        .send()
+        .await?;
+
+    println!("{}", res.text().await?);
+    Ok(())
+}`;
+  }
+}
+
+export default function CodeSnippetsModal({ open, onClose, model, systemPrompt, params }: Props) {
+  const [activeLang, setActiveLang] = useState<LangId>("curl");
+  const [copied, setCopied] = useState(false);
+
+  if (!open) return null;
+
+  const code = generateSnippet(activeLang, model, systemPrompt, params);
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center">
+      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative z-10 flex w-full max-w-2xl flex-col rounded-lg border border-border bg-card shadow-2xl max-h-[80vh]">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-border px-5 py-4">
+          <h2 className="text-sm font-semibold tracking-wide text-foreground">CODE SNIPPETS</h2>
+          <button onClick={onClose} className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Language Tabs */}
+        <div className="flex items-center gap-1 border-b border-border px-5 py-2 overflow-x-auto">
+          {LANGUAGES.map((lang) => (
+            <button
+              key={lang.id}
+              onClick={() => { setActiveLang(lang.id); setCopied(false); }}
+              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap ${
+                activeLang === lang.id
+                  ? "bg-primary/15 text-primary"
+                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+              }`}
+            >
+              <span>{lang.icon}</span>
+              {lang.name}
+            </button>
+          ))}
+        </div>
+
+        {/* Code Block */}
+        <div className="relative flex-1 overflow-auto p-5">
+          <button
+            onClick={handleCopy}
+            className="absolute right-7 top-7 flex items-center gap-1.5 rounded-md bg-secondary px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-border hover:text-foreground"
+          >
+            {copied ? <Check size={12} className="text-primary" /> : <Copy size={12} />}
+            {copied ? "Copied" : "Copy"}
+          </button>
+          <pre className="overflow-x-auto rounded-md bg-background p-4 font-mono text-xs leading-relaxed text-foreground/90 border border-border">
+            <code>{code}</code>
+          </pre>
+        </div>
+      </div>
+    </div>
+  );
+}
