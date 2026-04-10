@@ -188,6 +188,13 @@ export default function ControlPanel({ model, onModelChange, systemPrompt, onSys
         systemPrompt={systemPrompt}
         params={params}
       />
+
+      <ToolsModal
+        open={toolsOpen}
+        onClose={() => setToolsOpen(false)}
+        tools={tools}
+        onToolsChange={setTools}
+      />
     </>
   );
 }
