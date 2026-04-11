@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { X, Bookmark, ChevronRight, ChevronDown, Code2, Wrench } from "lucide-react";
+import { X, Bookmark, ChevronRight, ChevronDown, Code2, Wrench, Globe } from "lucide-react";
 import type { ModelParams } from "@/types/chat";
 import { DEFAULT_MODELS, DEFAULT_PRESETS } from "@/types/chat";
 import ModelSelectorModal from "./ModelSelectorModal";
 import CodeSnippetsModal from "./CodeSnippetsModal";
 import ToolsModal, { type ToolDefinition } from "./ToolsModal";
+import type { ProviderConfig } from "./ProviderModal";
 
 interface Props {
   model: string;
@@ -15,6 +16,8 @@ interface Props {
   onParamsChange: (p: ModelParams) => void;
   open: boolean;
   onClose: () => void;
+  provider?: ProviderConfig | null;
+  onOpenProviderModal?: () => void;
 }
 
 function Slider({
@@ -51,7 +54,7 @@ function Slider({
   );
 }
 
-export default function ControlPanel({ model, onModelChange, systemPrompt, onSystemPromptChange, params, onParamsChange, open, onClose }: Props) {
+export default function ControlPanel({ model, onModelChange, systemPrompt, onSystemPromptChange, params, onParamsChange, open, onClose, provider, onOpenProviderModal }: Props) {
   const [modelModalOpen, setModelModalOpen] = useState(false);
   const [snippetsOpen, setSnippetsOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
