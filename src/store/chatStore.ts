@@ -97,6 +97,17 @@ export function useChatStore() {
     [activeSessionId]
   );
 
+  const deleteMessage = useCallback(
+    (messageId: string) => {
+      updateSession(activeSessionId, (s) => ({
+        ...s,
+        messages: s.messages.filter((m) => m.id !== messageId),
+        updatedAt: Date.now(),
+      }));
+    },
+    [activeSessionId, updateSession]
+  );
+
   return {
     sessions,
     activeSession,
@@ -114,5 +125,6 @@ export function useChatStore() {
     setModel,
     newChat,
     deleteSession,
+    deleteMessage,
   };
 }
