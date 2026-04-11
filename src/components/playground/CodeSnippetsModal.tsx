@@ -250,7 +250,7 @@ export default function CodeSnippetsModal({ open, onClose, model, systemPrompt, 
           </button>
           <SyntaxHighlighter
             language={LANGUAGES.find((l) => l.id === activeLang)?.syntax ?? "bash"}
-            style={oneDark}
+            style={cleanOneDark}
             customStyle={{
               margin: 0,
               borderRadius: "0.375rem",
