@@ -3,6 +3,16 @@ import { X, Copy, Check } from "lucide-react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 
+// Remove background from all token styles
+const cleanOneDark = Object.fromEntries(
+  Object.entries(oneDark).map(([key, value]) => [
+    key,
+    typeof value === "object" && value !== null
+      ? { ...value, background: "transparent", backgroundColor: "transparent" }
+      : value,
+  ])
+);
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -240,7 +250,7 @@ export default function CodeSnippetsModal({ open, onClose, model, systemPrompt, 
           </button>
           <SyntaxHighlighter
             language={LANGUAGES.find((l) => l.id === activeLang)?.syntax ?? "bash"}
-            style={oneDark}
+            style={cleanOneDark}
             customStyle={{
               margin: 0,
               borderRadius: "0.375rem",
@@ -249,6 +259,7 @@ export default function CodeSnippetsModal({ open, onClose, model, systemPrompt, 
               border: "1px solid hsl(220 12% 16%)",
               background: "hsl(220 14% 6%)",
             }}
+            codeTagProps={{ style: { background: "transparent" } }}
             showLineNumbers
             lineNumberStyle={{ color: "hsl(215 12% 28%)", fontSize: "0.65rem" }}
           >
