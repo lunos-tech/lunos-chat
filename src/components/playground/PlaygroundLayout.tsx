@@ -110,6 +110,7 @@ export default function PlaygroundLayout() {
           onSend={handleSend}
           onStop={handleStop}
           isStreaming={isStreaming}
+          onDeleteMessage={store.deleteMessage}
         />
       </div>
 
