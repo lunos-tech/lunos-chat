@@ -59,6 +59,7 @@ export default function ControlPanel({ model, onModelChange, systemPrompt, onSys
   const [snippetsOpen, setSnippetsOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [tools, setTools] = useState<ToolDefinition[]>([]);
+  const [paramsOpen, setParamsOpen] = useState(false);
   const modelInfo = DEFAULT_MODELS.find((m) => m.id === model);
 
   const updateParam = (key: keyof ModelParams, value: number) => {
@@ -162,11 +163,24 @@ export default function ControlPanel({ model, onModelChange, systemPrompt, onSys
           </div>
 
           {/* Parameters */}
-          <div className="space-y-4">
-            <label className="text-xs font-semibold tracking-wider text-text-tertiary">PARAMETERS</label>
-            <Slider label="Temperature" value={params.temperature} onChange={(v) => updateParam("temperature", v)} min={0} max={2} step={0.05} />
-            <Slider label="Top P" value={params.topP} onChange={(v) => updateParam("topP", v)} min={0} max={1} step={0.05} />
-            <Slider label="Max Tokens" value={params.maxTokens} onChange={(v) => updateParam("maxTokens", v)} min={256} max={16384} step={256} />
+          <div className="space-y-2">
+            <button
+              onClick={() => setParamsOpen((v) => !v)}
+              className="flex w-full items-center justify-between text-xs font-semibold tracking-wider text-text-tertiary hover:text-foreground transition-colors"
+            >
+              PARAMETERS
+              <ChevronDown
+                size={14}
+                className={`transition-transform duration-200 ${paramsOpen ? "rotate-0" : "-rotate-90"}`}
+              />
+            </button>
+            <div
+              className={`space-y-4 overflow-hidden transition-all duration-200 ${paramsOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"}`}
+            >
+              <Slider label="Temperature" value={params.temperature} onChange={(v) => updateParam("temperature", v)} min={0} max={2} step={0.05} />
+              <Slider label="Top P" value={params.topP} onChange={(v) => updateParam("topP", v)} min={0} max={1} step={0.05} />
+              <Slider label="Max Tokens" value={params.maxTokens} onChange={(v) => updateParam("maxTokens", v)} min={256} max={16384} step={256} />
+            </div>
           </div>
 
           {/* Tools / Function Calling */}
