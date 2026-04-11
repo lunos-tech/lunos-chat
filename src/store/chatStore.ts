@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import type { ChatSession, ChatMessage, ModelParams } from "@/types/chat";
+import type { ChatSession, ChatMessage, ModelParams, MessageMetadata } from "@/types/chat";
 import { DEFAULT_PARAMS, DEFAULT_PRESETS } from "@/types/chat";
 
 const createId = () => crypto.randomUUID();
@@ -47,12 +47,12 @@ export function useChatStore() {
   );
 
   const updateLastAssistantMessage = useCallback(
-    (content: string, isStreaming: boolean) => {
+    (content: string, isStreaming: boolean, metadata?: MessageMetadata) => {
       updateSession(activeSessionId, (s) => {
         const msgs = [...s.messages];
         const lastIdx = msgs.length - 1;
         if (lastIdx >= 0 && msgs[lastIdx].role === "assistant") {
-          msgs[lastIdx] = { ...msgs[lastIdx], content, isStreaming };
+          msgs[lastIdx] = { ...msgs[lastIdx], content, isStreaming, ...(metadata ? { metadata } : {}) };
         }
         return { ...s, messages: msgs, updatedAt: Date.now() };
       });
