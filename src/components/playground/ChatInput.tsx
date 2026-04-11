@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { ArrowUp, Square, Paperclip, Globe, ImagePlus, Mic } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Props {
   onSend: (msg: string) => void;
@@ -10,14 +11,20 @@ interface Props {
 
 function IconButton({ icon: Icon, label, onClick }: { icon: typeof Paperclip; label: string; onClick?: () => void }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={label}
-      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-text-tertiary transition-colors hover:bg-surface-2 hover:text-foreground"
-    >
-      <Icon size={16} />
-    </button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          onClick={onClick}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-text-tertiary transition-colors hover:bg-surface-2 hover:text-foreground"
+        >
+          <Icon size={16} />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>{label}</p>
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -75,22 +82,29 @@ export default function ChatInput({ onSend, onStop, isStreaming, disabled }: Pro
               <IconButton icon={Mic} label="Voice input" />
             </div>
 
-            {isStreaming ? (
-              <button
-                onClick={onStop}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-destructive text-destructive-foreground transition-colors hover:bg-destructive/80"
-              >
-                <Square size={14} />
-              </button>
-            ) : (
-              <button
-                onClick={submit}
-                disabled={!value.trim() || disabled}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground transition-colors hover:bg-primary/80 disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                <ArrowUp size={16} />
-              </button>
-            )}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                {isStreaming ? (
+                  <button
+                    onClick={onStop}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-destructive text-destructive-foreground transition-colors hover:bg-destructive/80"
+                  >
+                    <Square size={14} />
+                  </button>
+                ) : (
+                  <button
+                    onClick={submit}
+                    disabled={!value.trim() || disabled}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground transition-colors hover:bg-primary/80 disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
+                    <ArrowUp size={16} />
+                  </button>
+                )}
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{isStreaming ? "Stop generation" : "Send message"}</p>
+              </TooltipContent>
+            </Tooltip>
           </div>
         </div>
       </div>

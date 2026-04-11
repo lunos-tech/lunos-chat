@@ -5,6 +5,7 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import type { ChatMessage as Msg } from "@/types/chat";
 import { DEFAULT_MODELS } from "@/types/chat";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Remove background from all token styles
 const cleanOneDark = Object.fromEntries(
@@ -31,9 +32,16 @@ function CopyButton({ text }: { text: string }) {
     setTimeout(() => setCopied(false), 1500);
   };
   return (
-    <button onClick={copy} className="rounded p-1 text-text-tertiary transition-colors hover:text-foreground">
-      {copied ? <Check size={13} /> : <Copy size={13} />}
-    </button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button onClick={copy} className="rounded p-1 text-text-tertiary transition-colors hover:text-foreground">
+          {copied ? <Check size={13} /> : <Copy size={13} />}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>{copied ? "Copied" : "Copy"}</p>
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -65,14 +73,20 @@ function MetadataDropdown({ message }: { message: Msg }) {
 
   return (
     <div ref={ref} className="relative">
-      <button
-        onClick={() => setOpen(!open)}
-        className="flex items-center gap-1 rounded p-1 text-text-tertiary transition-colors hover:text-foreground"
-        title="Message info"
-      >
-        <Info size={13} />
-        <ChevronDown size={10} className={`transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            onClick={() => setOpen(!open)}
+            className="flex items-center gap-1 rounded p-1 text-text-tertiary transition-colors hover:text-foreground"
+          >
+            <Info size={13} />
+            <ChevronDown size={10} className={`transition-transform ${open ? "rotate-180" : ""}`} />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>Message info</p>
+        </TooltipContent>
+      </Tooltip>
       {open && (
         <div className="absolute bottom-full left-0 mb-1 z-50 min-w-[180px] rounded-md border border-border bg-card p-2.5 shadow-lg">
           <p className="mb-1.5 font-mono text-[10px] font-semibold tracking-wider text-text-tertiary uppercase">Metadata</p>
@@ -196,19 +210,40 @@ export default memo(function ChatMessage({ message, onRegenerate, onEdit, onDele
             <CopyButton text={message.content} />
             {!isUser && message.metadata && <MetadataDropdown message={message} />}
             {!isUser && onRegenerate && (
-              <button onClick={onRegenerate} className="rounded p-1 text-text-tertiary transition-colors hover:text-foreground" title="Regenerate">
-                <RotateCcw size={13} />
-              </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button onClick={onRegenerate} className="rounded p-1 text-text-tertiary transition-colors hover:text-foreground">
+                    <RotateCcw size={13} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Regenerate</p>
+                </TooltipContent>
+              </Tooltip>
             )}
             {isUser && onEdit && (
-              <button onClick={() => onEdit(message.content)} className="rounded p-1 text-text-tertiary transition-colors hover:text-foreground" title="Edit">
-                <Pencil size={13} />
-              </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button onClick={() => onEdit(message.content)} className="rounded p-1 text-text-tertiary transition-colors hover:text-foreground">
+                    <Pencil size={13} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Edit</p>
+                </TooltipContent>
+              </Tooltip>
             )}
             {onDelete && (
-              <button onClick={onDelete} className="rounded p-1 text-text-tertiary transition-colors hover:text-destructive" title="Delete">
-                <Trash2 size={13} />
-              </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button onClick={onDelete} className="rounded p-1 text-text-tertiary transition-colors hover:text-destructive">
+                    <Trash2 size={13} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Delete</p>
+                </TooltipContent>
+              </Tooltip>
             )}
           </div>
         )}

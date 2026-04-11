@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState, useEffect } from "react";
+import { toast } from "sonner";
 import { useChatStore } from "@/store/chatStore";
 import ChatSidebar from "./ChatSidebar";
 import ChatArea from "./ChatArea";
@@ -7,6 +8,7 @@ import TopBar from "./TopBar";
 import ProviderModal, { isProviderConfigured, getStoredProvider, type ProviderConfig } from "./ProviderModal";
 import ModelSelectorModal from "./ModelSelectorModal";
 import PromptBrowserModal from "./PromptBrowserModal";
+import WelcomeModal from "./WelcomeModal";
 
 // Simulated streaming response
 function simulateStream(onDelta: (t: string) => void, onDone: () => void, signal: AbortSignal) {
@@ -59,12 +61,25 @@ export default function PlaygroundLayout() {
   const [providerModalOpen, setProviderModalOpen] = useState(false);
   const [modelModalOpen, setModelModalOpen] = useState(false);
   const [promptBrowserOpen, setPromptBrowserOpen] = useState(false);
+  const [welcomeOpen, setWelcomeOpen] = useState(false);
   const [provider, setProvider] = useState<ProviderConfig | null>(getStoredProvider);
 
-  // Show provider modal on first use
+  // Show welcome modal or provider modal on first load
   useEffect(() => {
-    if (!isProviderConfigured()) {
+    const hasSeenWelcome = localStorage.getItem("lunos_welcomed");
+    if (!hasSeenWelcome) {
+      setWelcomeOpen(true);
+    } else if (!isProviderConfigured()) {
       setProviderModalOpen(true);
+    }
+  }, []);
+
+  const handleWelcomeClose = useCallback(() => {
+    localStorage.setItem("lunos_welcomed", "true");
+    setWelcomeOpen(false);
+    if (!isProviderConfigured()) {
+      // Small delay for smooth transition
+      setTimeout(() => setProviderModalOpen(true), 300);
     }
   }, []);
 
@@ -109,6 +124,11 @@ export default function PlaygroundLayout() {
 
   const handleSend = useCallback(
     (content: string) => {
+      if (!isProviderConfigured()) {
+        toast.error("Please configure your AI provider first");
+        setProviderModalOpen(true);
+        return;
+      }
       runStream(content);
     },
     [runStream]
@@ -192,6 +212,11 @@ export default function PlaygroundLayout() {
           store.setSystemPrompt(prompt);
           store.setControlPanelOpen(true);
         }}
+      />
+
+      <WelcomeModal
+        open={welcomeOpen}
+        onClose={handleWelcomeClose}
       />
     </div>
   );

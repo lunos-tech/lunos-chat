@@ -8,12 +8,12 @@ export interface ProviderConfig {
   apiKey: string;
 }
 
-const DEFAULT_PROVIDERS: Omit<ProviderConfig, "apiKey">[] = [
-  { id: "lunos", name: "Lunos AI", baseUrl: "https://api.lunos.ai/v1" },
-  { id: "openai", name: "OpenAI", baseUrl: "https://api.openai.com/v1" },
-  { id: "anthropic", name: "Anthropic", baseUrl: "https://api.anthropic.com/v1" },
-  { id: "google", name: "Google AI", baseUrl: "https://generativelanguage.googleapis.com/v1" },
-  { id: "groq", name: "Groq", baseUrl: "https://api.groq.com/openai/v1" },
+const DEFAULT_PROVIDERS: (Omit<ProviderConfig, "apiKey"> & { apiKeyUrl?: string })[] = [
+  { id: "lunos", name: "Lunos AI", baseUrl: "https://api.lunos.tech/v1", apiKeyUrl: "https://lunos.tech/dashboard" },
+  { id: "openai", name: "OpenAI", baseUrl: "https://api.openai.com/v1", apiKeyUrl: "https://platform.openai.com/api-keys" },
+  { id: "anthropic", name: "Anthropic", baseUrl: "https://api.anthropic.com/v1", apiKeyUrl: "https://console.anthropic.com/settings/keys" },
+  { id: "google", name: "Google AI", baseUrl: "https://generativelanguage.googleapis.com/v1", apiKeyUrl: "https://aistudio.google.com/app/apikey" },
+  { id: "groq", name: "Groq", baseUrl: "https://api.groq.com/openai/v1", apiKeyUrl: "https://console.groq.com/keys" },
   { id: "custom", name: "Custom Gateway", baseUrl: "" },
 ];
 
@@ -109,11 +109,10 @@ export default function ProviderModal({ open, onClose, onSave }: Props) {
                 <button
                   key={provider.id}
                   onClick={() => setSelectedId(provider.id)}
-                  className={`flex items-center gap-2 rounded-md border px-3 py-2.5 text-left text-sm font-medium transition-colors ${
-                    selectedId === provider.id
+                  className={`flex items-center gap-2 rounded-md border px-3 py-2.5 text-left text-sm font-medium transition-colors ${selectedId === provider.id
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border bg-surface-2 text-foreground hover:border-primary/30"
-                  }`}
+                    }`}
                 >
                   {selectedId === provider.id && <Check size={12} />}
                   <span className={selectedId === provider.id ? "" : "ml-5"}>{provider.name}</span>
@@ -129,7 +128,19 @@ export default function ProviderModal({ open, onClose, onSave }: Props) {
 
           {/* API Key */}
           <div className="space-y-2">
-            <label className="text-xs font-semibold tracking-wider text-text-tertiary">API KEY</label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold tracking-wider text-text-tertiary">API KEY</label>
+              {DEFAULT_PROVIDERS.find((p) => p.id === selectedId)?.apiKeyUrl && (
+                <a
+                  href={DEFAULT_PROVIDERS.find((p) => p.id === selectedId)?.apiKeyUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-[10px] font-medium text-primary transition-colors hover:text-primary/80 hover:underline"
+                >
+                  Get API Key <ExternalLink size={10} />
+                </a>
+              )}
+            </div>
             <div className="relative">
               <Key size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
               <input
