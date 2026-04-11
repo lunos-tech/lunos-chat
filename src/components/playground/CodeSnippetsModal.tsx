@@ -249,6 +249,7 @@ export default function CodeSnippetsModal({ open, onClose, model, systemPrompt, 
               border: "1px solid hsl(220 12% 16%)",
               background: "hsl(220 14% 6%)",
             }}
+            codeTagProps={{ style: { background: "transparent" } }}
             showLineNumbers
             lineNumberStyle={{ color: "hsl(215 12% 28%)", fontSize: "0.65rem" }}
           >
