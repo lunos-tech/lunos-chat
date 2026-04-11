@@ -64,6 +64,7 @@ export default function PlaygroundLayout() {
 
       const controller = new AbortController();
       abortRef.current = controller;
+      const startTime = Date.now();
 
       let accumulated = "";
       simulateStream(
@@ -72,7 +73,16 @@ export default function PlaygroundLayout() {
           store.updateLastAssistantMessage(accumulated, true);
         },
         () => {
-          store.updateLastAssistantMessage(accumulated, false);
+          const duration = (Date.now() - startTime) / 1000;
+          const tokenCount = Math.round(accumulated.length / 4);
+          const tps = tokenCount / duration;
+          const cost = tokenCount * 0.00001;
+          store.updateLastAssistantMessage(accumulated, false, {
+            tokenCount,
+            tps,
+            cost,
+            duration,
+          });
           setIsStreaming(false);
           abortRef.current = null;
         },
@@ -110,6 +120,7 @@ export default function PlaygroundLayout() {
           onSend={handleSend}
           onStop={handleStop}
           isStreaming={isStreaming}
+          onDeleteMessage={store.deleteMessage}
         />
       </div>
 
