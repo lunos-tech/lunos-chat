@@ -93,9 +93,6 @@ export default function ChatInput({ onSend, onStop, isStreaming, disabled }: Pro
             )}
           </div>
         </div>
-        <p className="mt-2 text-center font-mono text-[11px] text-text-tertiary">
-          Lunos may produce inaccurate information. Verify important outputs.
-        </p>
       </div>
     </div>
   );

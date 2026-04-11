@@ -2,7 +2,6 @@ import { useState } from "react";
 import { X, Bookmark, ChevronRight, ChevronDown, Code2, Wrench, Globe } from "lucide-react";
 import type { ModelParams } from "@/types/chat";
 import { DEFAULT_MODELS, DEFAULT_PRESETS } from "@/types/chat";
-import ModelSelectorModal from "./ModelSelectorModal";
 import CodeSnippetsModal from "./CodeSnippetsModal";
 import ToolsModal, { type ToolDefinition } from "./ToolsModal";
 import type { ProviderConfig } from "./ProviderModal";
@@ -18,6 +17,7 @@ interface Props {
   onClose: () => void;
   provider?: ProviderConfig | null;
   onOpenProviderModal?: () => void;
+  onOpenPromptBrowser?: () => void;
 }
 
 function Slider({
@@ -54,12 +54,11 @@ function Slider({
   );
 }
 
-export default function ControlPanel({ model, onModelChange, systemPrompt, onSystemPromptChange, params, onParamsChange, open, onClose, provider, onOpenProviderModal }: Props) {
-  const [modelModalOpen, setModelModalOpen] = useState(false);
+export default function ControlPanel({ model, onModelChange, systemPrompt, onSystemPromptChange, params, onParamsChange, open, onClose, provider, onOpenProviderModal, onOpenPromptBrowser }: Props) {
   const [snippetsOpen, setSnippetsOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [tools, setTools] = useState<ToolDefinition[]>([]);
-  const [paramsOpen, setParamsOpen] = useState(false);
+  const [paramsOpen, setParamsOpen] = useState(true);
   const modelInfo = DEFAULT_MODELS.find((m) => m.id === model);
 
   const updateParam = (key: keyof ModelParams, value: number) => {
@@ -76,7 +75,7 @@ export default function ControlPanel({ model, onModelChange, systemPrompt, onSys
         } ${open ? "" : "lg:hidden"}`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <div className="flex h-12 items-center justify-between border-b border-border px-4">
           <span className="text-sm font-semibold tracking-wide text-foreground">CONTROLS</span>
           <button onClick={onClose} className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground">
             <X size={16} />
@@ -84,6 +83,7 @@ export default function ControlPanel({ model, onModelChange, systemPrompt, onSys
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
+
           {/* AI Provider */}
           <div className="space-y-2">
             <label className="text-xs font-semibold tracking-wider text-text-tertiary">AI PROVIDER</label>
@@ -104,24 +104,6 @@ export default function ControlPanel({ model, onModelChange, systemPrompt, onSys
             </button>
           </div>
 
-          {/* Model Selector - opens modal */}
-          <div className="space-y-2">
-            <label className="text-xs font-semibold tracking-wider text-text-tertiary">MODEL</label>
-            <button
-              onClick={() => setModelModalOpen(true)}
-              className="flex w-full items-center justify-between rounded-md border border-border bg-surface-2 px-3 py-2.5 text-left transition-colors hover:border-primary/30"
-            >
-              <div className="flex items-center gap-2">
-                {modelInfo && <span className="text-base">{modelInfo.icon}</span>}
-                <div>
-                  <span className="block text-sm font-medium text-foreground">{modelInfo?.name ?? model}</span>
-                  <span className="block font-mono text-[10px] text-text-tertiary">{modelInfo?.provider}</span>
-                </div>
-              </div>
-              <ChevronRight size={14} className="text-text-tertiary" />
-            </button>
-          </div>
-
           {/* Presets Dropdown */}
           <div className="space-y-2">
             <label className="text-xs font-semibold tracking-wider text-text-tertiary">PRESET</label>
@@ -129,6 +111,10 @@ export default function ControlPanel({ model, onModelChange, systemPrompt, onSys
               <select
                 value={DEFAULT_PRESETS.find((p) => p.prompt === systemPrompt)?.id ?? "custom"}
                 onChange={(e) => {
+                  if (e.target.value === "open_promptcreek") {
+                    if (onOpenPromptBrowser) onOpenPromptBrowser();
+                    return;
+                  }
                   const preset = DEFAULT_PRESETS.find((p) => p.id === e.target.value);
                   if (preset) onSystemPromptChange(preset.prompt);
                 }}
@@ -139,6 +125,7 @@ export default function ControlPanel({ model, onModelChange, systemPrompt, onSys
                     {p.icon} {p.name}
                   </option>
                 ))}
+                <option value="open_promptcreek">🌐 Browse PromptCreek...</option>
                 {!DEFAULT_PRESETS.some((p) => p.prompt === systemPrompt) && (
                   <option value="custom" disabled>Custom</option>
                 )}
@@ -210,13 +197,6 @@ export default function ControlPanel({ model, onModelChange, systemPrompt, onSys
           </div>
         </div>
       </aside>
-
-      <ModelSelectorModal
-        open={modelModalOpen}
-        onClose={() => setModelModalOpen(false)}
-        currentModel={model}
-        onSelect={onModelChange}
-      />
 
       <CodeSnippetsModal
         open={snippetsOpen}

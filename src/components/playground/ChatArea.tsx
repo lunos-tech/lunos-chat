@@ -2,7 +2,7 @@ import { useRef, useEffect, useCallback } from "react";
 import ChatMessage from "./ChatMessage";
 import ChatInput from "./ChatInput";
 import type { ChatSession } from "@/types/chat";
-import { Zap } from "lucide-react";
+
 
 interface Props {
   session: ChatSession;
@@ -16,8 +16,8 @@ interface Props {
 function EmptyState({ model }: { model: string }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center px-4">
-      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg border border-border bg-surface-2">
-        <Zap size={20} className="text-primary" />
+      <div className="mb-5 flex items-center justify-center">
+        <img src="/logo.png" alt="Lunos Logo" className="h-16 w-16 object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]" />
       </div>
       <h2 className="mb-1 text-lg font-semibold text-foreground">Lunos Playground</h2>
       <p className="mb-6 max-w-sm text-center text-sm text-text-secondary">

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { X, Plus, Trash2, ChevronDown, ChevronUp, Code2 } from "lucide-react";
 
 export interface ToolDefinition {
   id: string;
@@ -171,6 +171,44 @@ function ToolEditor({
 }
 
 export default function ToolsModal({ open, onClose, tools, onToolsChange }: Props) {
+  const [jsonInput, setJsonInput] = useState("");
+  const [showJsonInput, setShowJsonInput] = useState(false);
+  const [jsonError, setJsonError] = useState("");
+
+  const handleImportJSON = () => {
+    try {
+      const raw = JSON.parse(jsonInput);
+      const items = Array.isArray(raw) ? raw : [raw];
+
+      const imported: ToolDefinition[] = items.map((item: any) => {
+        // Support OpenAI function-calling format: { type: "function", function: { ... } }
+        const fn = item.function ?? item;
+        const params = fn.parameters?.properties ?? {};
+        const required: string[] = fn.parameters?.required ?? [];
+
+        return {
+          id: crypto.randomUUID(),
+          name: fn.name ?? "",
+          description: fn.description ?? "",
+          parameters: Object.entries(params).map(([key, val]: [string, any]) => ({
+            id: crypto.randomUUID(),
+            name: key,
+            type: (val.type ?? "string") as ToolParam["type"],
+            description: val.description ?? "",
+            required: required.includes(key),
+          })),
+        };
+      });
+
+      onToolsChange([...tools, ...imported]);
+      setJsonInput("");
+      setShowJsonInput(false);
+      setJsonError("");
+    } catch {
+      setJsonError("Invalid JSON. Please check the format and try again.");
+    }
+  };
+
   if (!open) return null;
 
   return (
@@ -190,7 +228,7 @@ export default function ToolsModal({ open, onClose, tools, onToolsChange }: Prop
 
         {/* Tools List */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {tools.length === 0 && (
+          {tools.length === 0 && !showJsonInput && (
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <p className="text-xs text-muted-foreground">No tools defined yet</p>
               <p className="mt-1 text-[10px] text-muted-foreground/70">Add a tool to enable function calling</p>
@@ -204,16 +242,60 @@ export default function ToolsModal({ open, onClose, tools, onToolsChange }: Prop
               onDelete={() => onToolsChange(tools.filter((t) => t.id !== tool.id))}
             />
           ))}
+
+          {/* JSON Input Area */}
+          {showJsonInput && (
+            <div className="space-y-2 rounded-md border border-border bg-background p-3">
+              <label className="text-[10px] font-semibold tracking-wider text-muted-foreground">PASTE JSON</label>
+              <textarea
+                value={jsonInput}
+                onChange={(e) => { setJsonInput(e.target.value); setJsonError(""); }}
+                rows={8}
+                placeholder={`[\n  {\n    "name": "get_weather",\n    "description": "Get current weather",\n    "parameters": {\n      "properties": {\n        "location": { "type": "string", "description": "City name" }\n      },\n      "required": ["location"]\n    }\n  }\n]`}
+                className="w-full resize-none rounded border border-border bg-secondary px-3 py-2 font-mono text-[11px] leading-relaxed text-foreground placeholder:text-muted-foreground/50 focus:border-primary/40 focus:outline-none"
+              />
+              {jsonError && (
+                <p className="text-[10px] text-destructive">{jsonError}</p>
+              )}
+              <div className="flex gap-2">
+                <button
+                  onClick={handleImportJSON}
+                  disabled={!jsonInput.trim()}
+                  className="flex-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Import
+                </button>
+                <button
+                  onClick={() => { setShowJsonInput(false); setJsonInput(""); setJsonError(""); }}
+                  className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
         <div className="border-t border-border px-5 py-3">
-          <button
-            onClick={() => onToolsChange([...tools, createTool()])}
-            className="flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-border py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-primary"
-          >
-            <Plus size={13} /> Add Tool
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => onToolsChange([...tools, createTool()])}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-dashed border-border py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-primary"
+            >
+              <Plus size={13} /> Add Tool
+            </button>
+            <button
+              onClick={() => setShowJsonInput(!showJsonInput)}
+              className={`flex flex-1 items-center justify-center gap-1.5 rounded-md border border-dashed py-2 text-xs font-medium transition-colors ${
+                showJsonInput
+                  ? "border-primary/30 text-primary"
+                  : "border-border text-muted-foreground hover:border-primary/30 hover:text-primary"
+              }`}
+            >
+              <Code2 size={13} /> Import JSON
+            </button>
+          </div>
         </div>
       </div>
     </div>

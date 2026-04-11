@@ -5,6 +5,8 @@ import ChatArea from "./ChatArea";
 import ControlPanel from "./ControlPanel";
 import TopBar from "./TopBar";
 import ProviderModal, { isProviderConfigured, getStoredProvider, type ProviderConfig } from "./ProviderModal";
+import ModelSelectorModal from "./ModelSelectorModal";
+import PromptBrowserModal from "./PromptBrowserModal";
 
 // Simulated streaming response
 function simulateStream(onDelta: (t: string) => void, onDone: () => void, signal: AbortSignal) {
@@ -55,6 +57,8 @@ export default function PlaygroundLayout() {
   const [isStreaming, setIsStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const [providerModalOpen, setProviderModalOpen] = useState(false);
+  const [modelModalOpen, setModelModalOpen] = useState(false);
+  const [promptBrowserOpen, setPromptBrowserOpen] = useState(false);
   const [provider, setProvider] = useState<ProviderConfig | null>(getStoredProvider);
 
   // Show provider modal on first use
@@ -142,6 +146,7 @@ export default function PlaygroundLayout() {
           model={store.activeSession.model}
           onToggleSidebar={() => store.setSidebarOpen(!store.sidebarOpen)}
           onToggleControls={() => store.setControlPanelOpen(!store.controlPanelOpen)}
+          onOpenModelModal={() => setModelModalOpen(true)}
         />
         <ChatArea
           session={store.activeSession}
@@ -164,12 +169,29 @@ export default function PlaygroundLayout() {
         onClose={() => store.setControlPanelOpen(false)}
         provider={provider}
         onOpenProviderModal={() => setProviderModalOpen(true)}
+        onOpenPromptBrowser={() => setPromptBrowserOpen(true)}
       />
 
       <ProviderModal
         open={providerModalOpen}
         onClose={() => setProviderModalOpen(false)}
         onSave={setProvider}
+      />
+
+      <ModelSelectorModal
+        open={modelModalOpen}
+        onClose={() => setModelModalOpen(false)}
+        currentModel={store.activeSession.model}
+        onSelect={store.setModel}
+      />
+
+      <PromptBrowserModal
+        open={promptBrowserOpen}
+        onClose={() => setPromptBrowserOpen(false)}
+        onSelect={(prompt) => {
+          store.setSystemPrompt(prompt);
+          store.setControlPanelOpen(true);
+        }}
       />
     </div>
   );
