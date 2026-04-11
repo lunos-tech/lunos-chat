@@ -1,9 +1,10 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, useEffect } from "react";
 import { useChatStore } from "@/store/chatStore";
 import ChatSidebar from "./ChatSidebar";
 import ChatArea from "./ChatArea";
 import ControlPanel from "./ControlPanel";
 import TopBar from "./TopBar";
+import ProviderModal, { isProviderConfigured, getStoredProvider, type ProviderConfig } from "./ProviderModal";
 
 // Simulated streaming response
 function simulateStream(onDelta: (t: string) => void, onDone: () => void, signal: AbortSignal) {
@@ -53,12 +54,22 @@ export default function PlaygroundLayout() {
   const store = useChatStore();
   const [isStreaming, setIsStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const [providerModalOpen, setProviderModalOpen] = useState(false);
+  const [provider, setProvider] = useState<ProviderConfig | null>(getStoredProvider);
 
-  const handleSend = useCallback(
-    (content: string) => {
-      store.addMessage({ role: "user", content, model: store.activeSession.model });
+  // Show provider modal on first use
+  useEffect(() => {
+    if (!isProviderConfigured()) {
+      setProviderModalOpen(true);
+    }
+  }, []);
 
-      // Add empty assistant message
+  const runStream = useCallback(
+    (userContent?: string) => {
+      if (userContent) {
+        store.addMessage({ role: "user", content: userContent, model: store.activeSession.model });
+      }
+
       store.addMessage({ role: "assistant", content: "", model: store.activeSession.model, isStreaming: true });
       setIsStreaming(true);
 
@@ -92,6 +103,23 @@ export default function PlaygroundLayout() {
     [store]
   );
 
+  const handleSend = useCallback(
+    (content: string) => {
+      runStream(content);
+    },
+    [runStream]
+  );
+
+  const handleRegenerate = useCallback(
+    (messageId: string) => {
+      // Delete the message being regenerated
+      store.deleteMessage(messageId);
+      // Run a new stream (no user message added)
+      runStream();
+    },
+    [store, runStream]
+  );
+
   const handleStop = useCallback(() => {
     abortRef.current?.abort();
     setIsStreaming(false);
@@ -121,6 +149,7 @@ export default function PlaygroundLayout() {
           onStop={handleStop}
           isStreaming={isStreaming}
           onDeleteMessage={store.deleteMessage}
+          onRegenerate={handleRegenerate}
         />
       </div>
 
@@ -133,6 +162,14 @@ export default function PlaygroundLayout() {
         onParamsChange={store.setParams}
         open={store.controlPanelOpen}
         onClose={() => store.setControlPanelOpen(false)}
+        provider={provider}
+        onOpenProviderModal={() => setProviderModalOpen(true)}
+      />
+
+      <ProviderModal
+        open={providerModalOpen}
+        onClose={() => setProviderModalOpen(false)}
+        onSave={setProvider}
       />
     </div>
   );

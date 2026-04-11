@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { X, Bookmark, ChevronRight, ChevronDown, Code2, Wrench } from "lucide-react";
+import { X, Bookmark, ChevronRight, ChevronDown, Code2, Wrench, Globe } from "lucide-react";
 import type { ModelParams } from "@/types/chat";
 import { DEFAULT_MODELS, DEFAULT_PRESETS } from "@/types/chat";
 import ModelSelectorModal from "./ModelSelectorModal";
 import CodeSnippetsModal from "./CodeSnippetsModal";
 import ToolsModal, { type ToolDefinition } from "./ToolsModal";
+import type { ProviderConfig } from "./ProviderModal";
 
 interface Props {
   model: string;
@@ -15,6 +16,8 @@ interface Props {
   onParamsChange: (p: ModelParams) => void;
   open: boolean;
   onClose: () => void;
+  provider?: ProviderConfig | null;
+  onOpenProviderModal?: () => void;
 }
 
 function Slider({
@@ -51,7 +54,7 @@ function Slider({
   );
 }
 
-export default function ControlPanel({ model, onModelChange, systemPrompt, onSystemPromptChange, params, onParamsChange, open, onClose }: Props) {
+export default function ControlPanel({ model, onModelChange, systemPrompt, onSystemPromptChange, params, onParamsChange, open, onClose, provider, onOpenProviderModal }: Props) {
   const [modelModalOpen, setModelModalOpen] = useState(false);
   const [snippetsOpen, setSnippetsOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
@@ -80,6 +83,26 @@ export default function ControlPanel({ model, onModelChange, systemPrompt, onSys
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
+          {/* AI Provider */}
+          <div className="space-y-2">
+            <label className="text-xs font-semibold tracking-wider text-text-tertiary">AI PROVIDER</label>
+            <button
+              onClick={onOpenProviderModal}
+              className="flex w-full items-center justify-between rounded-md border border-border bg-surface-2 px-3 py-2.5 text-left transition-colors hover:border-primary/30"
+            >
+              <div className="flex items-center gap-2">
+                <Globe size={14} className="text-primary" />
+                <div>
+                  <span className="block text-sm font-medium text-foreground">{provider?.name ?? "Not configured"}</span>
+                  {provider && (
+                    <span className="block font-mono text-[10px] text-text-tertiary truncate max-w-[180px]">{provider.baseUrl}</span>
+                  )}
+                </div>
+              </div>
+              <ChevronRight size={14} className="text-text-tertiary" />
+            </button>
+          </div>
+
           {/* Model Selector - opens modal */}
           <div className="space-y-2">
             <label className="text-xs font-semibold tracking-wider text-text-tertiary">MODEL</label>

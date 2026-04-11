@@ -10,6 +10,7 @@ interface Props {
   onStop?: () => void;
   isStreaming: boolean;
   onDeleteMessage?: (id: string) => void;
+  onRegenerate?: (messageId: string) => void;
 }
 
 function EmptyState({ model }: { model: string }) {
@@ -30,7 +31,7 @@ function EmptyState({ model }: { model: string }) {
   );
 }
 
-export default function ChatArea({ session, onSend, onStop, isStreaming, onDeleteMessage }: Props) {
+export default function ChatArea({ session, onSend, onStop, isStreaming, onDeleteMessage, onRegenerate }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const userScrolledUp = useRef(false);
@@ -67,6 +68,7 @@ export default function ChatArea({ session, onSend, onStop, isStreaming, onDelet
                 key={msg.id}
                 message={msg}
                 onDelete={onDeleteMessage ? () => onDeleteMessage(msg.id) : undefined}
+                onRegenerate={msg.role === "assistant" && onRegenerate ? () => onRegenerate(msg.id) : undefined}
               />
             ))}
             <div ref={bottomRef} />
