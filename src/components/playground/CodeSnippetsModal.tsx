@@ -3,6 +3,16 @@ import { X, Copy, Check } from "lucide-react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 
+// Remove background from all token styles
+const cleanOneDark = Object.fromEntries(
+  Object.entries(oneDark).map(([key, value]) => [
+    key,
+    typeof value === "object" && value !== null
+      ? { ...value, background: "transparent", backgroundColor: "transparent" }
+      : value,
+  ])
+);
+
 interface Props {
   open: boolean;
   onClose: () => void;
