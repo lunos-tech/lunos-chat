@@ -1,15 +1,26 @@
-import { memo, useState } from "react";
-import { Copy, Check, RotateCcw, Pencil } from "lucide-react";
+import { memo, useState, useRef, useEffect } from "react";
+import { Copy, Check, RotateCcw, Pencil, Trash2, ChevronDown, Info } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import type { ChatMessage as Msg } from "@/types/chat";
 import { DEFAULT_MODELS } from "@/types/chat";
 
+// Remove background from all token styles
+const cleanOneDark = Object.fromEntries(
+  Object.entries(oneDark).map(([key, value]) => [
+    key,
+    typeof value === "object" && value !== null
+      ? { ...value, background: "transparent", backgroundColor: "transparent" }
+      : value,
+  ])
+);
+
 interface Props {
   message: Msg;
   onRegenerate?: () => void;
   onEdit?: (content: string) => void;
+  onDelete?: () => void;
 }
 
 function CopyButton({ text }: { text: string }) {
@@ -36,7 +47,68 @@ function TypingIndicator() {
   );
 }
 
-export default memo(function ChatMessage({ message, onRegenerate, onEdit }: Props) {
+function MetadataDropdown({ message }: { message: Msg }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const meta = message.metadata;
+
+  useEffect(() => {
+    if (!open) return;
+    const handle = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [open]);
+
+  if (!meta) return null;
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1 rounded p-1 text-text-tertiary transition-colors hover:text-foreground"
+        title="Message info"
+      >
+        <Info size={13} />
+        <ChevronDown size={10} className={`transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="absolute bottom-full left-0 mb-1 z-50 min-w-[180px] rounded-md border border-border bg-card p-2.5 shadow-lg">
+          <p className="mb-1.5 font-mono text-[10px] font-semibold tracking-wider text-text-tertiary uppercase">Metadata</p>
+          <div className="space-y-1">
+            {meta.tokenCount != null && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-text-secondary">Tokens</span>
+                <span className="font-mono text-foreground">{meta.tokenCount.toLocaleString()}</span>
+              </div>
+            )}
+            {meta.tps != null && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-text-secondary">Speed</span>
+                <span className="font-mono text-foreground">{meta.tps.toFixed(1)} tok/s</span>
+              </div>
+            )}
+            {meta.cost != null && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-text-secondary">Cost</span>
+                <span className="font-mono text-foreground">${meta.cost.toFixed(4)}</span>
+              </div>
+            )}
+            {meta.duration != null && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-text-secondary">Duration</span>
+                <span className="font-mono text-foreground">{meta.duration.toFixed(1)}s</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default memo(function ChatMessage({ message, onRegenerate, onEdit, onDelete }: Props) {
   const isUser = message.role === "user";
   const modelInfo = message.model ? DEFAULT_MODELS.find((m) => m.id === message.model) : null;
 
@@ -73,10 +145,11 @@ export default memo(function ChatMessage({ message, onRegenerate, onEdit }: Prop
                           <CopyButton text={codeStr} />
                         </div>
                         <SyntaxHighlighter
-                          style={oneDark}
+                          style={cleanOneDark}
                           language={match[1]}
                           PreTag="div"
                           customStyle={{ margin: 0, background: "hsl(220, 13%, 7%)", fontSize: "13px", padding: "12px 16px" }}
+                          codeTagProps={{ style: { background: "transparent" } }}
                         >
                           {codeStr}
                         </SyntaxHighlighter>
@@ -121,6 +194,7 @@ export default memo(function ChatMessage({ message, onRegenerate, onEdit }: Prop
         {!message.isStreaming && (
           <div className="mt-2 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
             <CopyButton text={message.content} />
+            {!isUser && message.metadata && <MetadataDropdown message={message} />}
             {!isUser && onRegenerate && (
               <button onClick={onRegenerate} className="rounded p-1 text-text-tertiary transition-colors hover:text-foreground" title="Regenerate">
                 <RotateCcw size={13} />
@@ -129,6 +203,11 @@ export default memo(function ChatMessage({ message, onRegenerate, onEdit }: Prop
             {isUser && onEdit && (
               <button onClick={() => onEdit(message.content)} className="rounded p-1 text-text-tertiary transition-colors hover:text-foreground" title="Edit">
                 <Pencil size={13} />
+              </button>
+            )}
+            {onDelete && (
+              <button onClick={onDelete} className="rounded p-1 text-text-tertiary transition-colors hover:text-destructive" title="Delete">
+                <Trash2 size={13} />
               </button>
             )}
           </div>

@@ -1,5 +1,12 @@
 export type MessageRole = "user" | "assistant" | "system";
 
+export interface MessageMetadata {
+  tokenCount?: number;
+  tps?: number;
+  cost?: number;
+  duration?: number;
+}
+
 export interface ChatMessage {
   id: string;
   role: MessageRole;
@@ -7,6 +14,7 @@ export interface ChatMessage {
   model?: string;
   timestamp: number;
   isStreaming?: boolean;
+  metadata?: MessageMetadata;
 }
 
 export interface ChatSession {
