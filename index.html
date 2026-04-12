@@ -1,6 +1,18 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <script>
+      try {
+        var k = "lunos-playground-theme";
+        var v = localStorage.getItem(k);
+        var dark;
+        if (v === "dark") dark = true;
+        else if (v === "light") dark = false;
+        else if (v === "system") dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        else dark = true;
+        document.documentElement.classList.toggle("dark", dark);
+      } catch (e) {}
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- TODO: Set the document title to the name of your application -->

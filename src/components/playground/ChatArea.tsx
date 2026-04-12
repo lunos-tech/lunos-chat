@@ -1,8 +1,7 @@
 import { useRef, useEffect, useCallback } from "react";
 import ChatMessage from "./ChatMessage";
 import ChatInput from "./ChatInput";
-import type { ChatSession } from "@/types/chat";
-
+import type { ChatSession, ContextWindowChats } from "@/types/chat";
 
 interface Props {
   session: ChatSession;
@@ -11,6 +10,9 @@ interface Props {
   isStreaming: boolean;
   onDeleteMessage?: (id: string) => void;
   onRegenerate?: (messageId: string) => void;
+  onEditMessage?: (id: string, content: string) => void;
+  maxContextChats: ContextWindowChats;
+  onMaxContextChatsChange: (v: ContextWindowChats) => void;
 }
 
 function EmptyState({ model }: { model: string }) {
@@ -31,7 +33,17 @@ function EmptyState({ model }: { model: string }) {
   );
 }
 
-export default function ChatArea({ session, onSend, onStop, isStreaming, onDeleteMessage, onRegenerate }: Props) {
+export default function ChatArea({
+  session,
+  onSend,
+  onStop,
+  isStreaming,
+  onDeleteMessage,
+  onRegenerate,
+  onEditMessage,
+  maxContextChats,
+  onMaxContextChatsChange,
+}: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const userScrolledUp = useRef(false);
@@ -69,13 +81,20 @@ export default function ChatArea({ session, onSend, onStop, isStreaming, onDelet
                 message={msg}
                 onDelete={onDeleteMessage ? () => onDeleteMessage(msg.id) : undefined}
                 onRegenerate={msg.role === "assistant" && onRegenerate ? () => onRegenerate(msg.id) : undefined}
+                onEdit={msg.role === "user" && onEditMessage ? (content) => onEditMessage(msg.id, content) : undefined}
               />
             ))}
             <div ref={bottomRef} />
           </div>
         )}
       </div>
-      <ChatInput onSend={onSend} onStop={onStop} isStreaming={isStreaming} />
+      <ChatInput
+        onSend={onSend}
+        onStop={onStop}
+        isStreaming={isStreaming}
+        maxContextChats={maxContextChats}
+        onMaxContextChatsChange={onMaxContextChatsChange}
+      />
     </div>
   );
 }

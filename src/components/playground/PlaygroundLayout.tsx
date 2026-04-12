@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useChatStore } from "@/store/chatStore";
 import ChatSidebar from "./ChatSidebar";
@@ -6,63 +7,52 @@ import ChatArea from "./ChatArea";
 import ControlPanel from "./ControlPanel";
 import TopBar from "./TopBar";
 import ProviderModal, { isProviderConfigured, getStoredProvider, type ProviderConfig } from "./ProviderModal";
-import ModelSelectorModal from "./ModelSelectorModal";
+import ModelSelectorModal, { getModelSupportedParams } from "./ModelSelectorModal";
 import PromptBrowserModal from "./PromptBrowserModal";
 import WelcomeModal from "./WelcomeModal";
-
-// Simulated streaming response
-function simulateStream(onDelta: (t: string) => void, onDone: () => void, signal: AbortSignal) {
-  const response = `Here's a demonstration of the Lunos Playground capabilities.
-
-## Features
-
-- **Multi-model support**: Switch between GPT-4o, Claude, Gemini, and more
-- **System prompt control**: Deep customization of AI behavior
-- **Parameter tuning**: Temperature, top_p, frequency penalty, and more
-
-\`\`\`typescript
-// Example: streaming API call
-const response = await fetch("/api/chat", {
-  method: "POST",
-  body: JSON.stringify({ messages, model, params }),
-});
-
-const reader = response.body?.getReader();
-while (true) {
-  const { done, value } = await reader.read();
-  if (done) break;
-  yield decoder.decode(value);
-}
-\`\`\`
-
-> The playground is designed for developers who need precise control over their AI interactions.
-
-This is a **local demo**. Connect to a real API to unlock full functionality.`;
-
-  const words = response.split(/(?<=\s)/);
-  let i = 0;
-  const interval = setInterval(() => {
-    if (signal.aborted || i >= words.length) {
-      clearInterval(interval);
-      onDone();
-      return;
-    }
-    onDelta(words[i]);
-    i++;
-  }, 25);
-
-  return () => clearInterval(interval);
-}
+import { type ToolDefinition } from "./ToolsModal";
+import { streamChat, summarizeTitle } from "@/lib/chatService";
 
 export default function PlaygroundLayout() {
   const store = useChatStore();
   const [isStreaming, setIsStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const cleanupRef = useRef<(() => void) | null>(null);
   const [providerModalOpen, setProviderModalOpen] = useState(false);
   const [modelModalOpen, setModelModalOpen] = useState(false);
   const [promptBrowserOpen, setPromptBrowserOpen] = useState(false);
   const [welcomeOpen, setWelcomeOpen] = useState(false);
   const [provider, setProvider] = useState<ProviderConfig | null>(getStoredProvider);
+  const [tools, setTools] = useState<ToolDefinition[]>([]);
+  const navigate = useNavigate();
+  const { id } = useParams();
+
+  // 1. Sync Store -> URL
+  // Triggered only when the store's active session changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!id || (store.activeSessionId && id !== store.activeSessionId)) {
+      navigate(`/chat/${store.activeSessionId}`, { replace: !id });
+    }
+  }, [store.activeSessionId]);
+
+  // 2. Sync URL -> Store
+  // Triggered only when the URL's id parameter changes (e.g. browser back button).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (id && id !== store.activeSessionId) {
+      const exists = store.sessions.some((s) => s.id === id);
+      if (exists) {
+        store.setActiveSessionId(id);
+      } else {
+        // ID not found (invalid URL): revert the URL back to our active session
+        navigate(`/chat/${store.activeSessionId}`, { replace: true });
+      }
+    }
+  }, [id]);
+
+  // Look up supported parameters for the current model
+  const supportedParams = getModelSupportedParams(store.activeSession.model);
 
   // Show welcome modal or provider modal on first load
   useEffect(() => {
@@ -84,11 +74,23 @@ export default function PlaygroundLayout() {
   }, []);
 
   const runStream = useCallback(
-    (userContent?: string) => {
+    (userContent?: string, existingMessages?: typeof store.activeSession.messages) => {
+      const currentProvider = getStoredProvider();
+      if (!currentProvider) {
+        toast.error("Please configure your AI provider first");
+        setProviderModalOpen(true);
+        return;
+      }
+
+      const currentMessages = existingMessages ?? store.activeSession.messages;
+      const isFirstMessage = currentMessages.length === 0 && !!userContent;
+
+      // Add user message first
       if (userContent) {
         store.addMessage({ role: "user", content: userContent, model: store.activeSession.model });
       }
 
+      // Add empty assistant message placeholder
       store.addMessage({ role: "assistant", content: "", model: store.activeSession.model, isStreaming: true });
       setIsStreaming(true);
 
@@ -96,30 +98,71 @@ export default function PlaygroundLayout() {
       abortRef.current = controller;
       const startTime = Date.now();
 
-      let accumulated = "";
-      simulateStream(
-        (delta) => {
-          accumulated += delta;
-          store.updateLastAssistantMessage(accumulated, true);
-        },
-        () => {
-          const duration = (Date.now() - startTime) / 1000;
-          const tokenCount = Math.round(accumulated.length / 4);
-          const tps = tokenCount / duration;
-          const cost = tokenCount * 0.00001;
-          store.updateLastAssistantMessage(accumulated, false, {
-            tokenCount,
-            tps,
-            cost,
-            duration,
+      // If this is the first message, summarize it as the title concurrently
+      if (isFirstMessage && userContent) {
+        summarizeTitle(currentProvider, store.activeSession.model, userContent)
+          .then((title) => {
+            store.updateSessionTitle(title);
+          })
+          .catch(() => {
+            // Fallback handled inside summarizeTitle already
           });
-          setIsStreaming(false);
-          abortRef.current = null;
+      }
+
+      // Build messages snapshot for the API call
+      const messagesForApi = [
+        ...currentMessages,
+        ...(userContent
+          ? [{ id: "", role: "user" as const, content: userContent, model: store.activeSession.model, timestamp: Date.now() }]
+          : []),
+      ];
+
+      let accumulated = "";
+
+      const cleanup = streamChat(
+        currentProvider,
+        store.activeSession.model,
+        store.activeSession.systemPrompt,
+        messagesForApi,
+        store.maxContextChats,
+        store.params,
+        tools,
+        {
+          onDelta: (delta) => {
+            accumulated += delta;
+            store.updateLastAssistantMessage(accumulated, true);
+          },
+          onDone: (fullText) => {
+            const duration = (Date.now() - startTime) / 1000;
+            const tokenCount = Math.round(fullText.length / 4);
+            const tps = duration > 0 ? tokenCount / duration : 0;
+            store.updateLastAssistantMessage(fullText, false, {
+              tokenCount,
+              tps,
+              duration,
+            });
+            setIsStreaming(false);
+            abortRef.current = null;
+            cleanupRef.current = null;
+          },
+          onError: (errorMsg) => {
+            store.updateLastAssistantMessage(
+              `⚠️ **Error:** ${errorMsg}`,
+              false,
+            );
+            setIsStreaming(false);
+            abortRef.current = null;
+            cleanupRef.current = null;
+            toast.error("Failed to get response", { description: errorMsg });
+          },
         },
-        controller.signal
+        controller.signal,
+        supportedParams,
       );
+
+      cleanupRef.current = cleanup;
     },
-    [store]
+    [store, tools]
   );
 
   const handleSend = useCallback(
@@ -136,16 +179,32 @@ export default function PlaygroundLayout() {
 
   const handleRegenerate = useCallback(
     (messageId: string) => {
-      // Delete the message being regenerated
+      // Build clean messages without the one being regenerated BEFORE deleting
+      const cleanedMessages = store.activeSession.messages.filter((m) => m.id !== messageId);
+      // Delete from store (UI update)
       store.deleteMessage(messageId);
-      // Run a new stream (no user message added)
-      runStream();
+      // Pass the already-filtered messages to avoid stale state
+      runStream(undefined, cleanedMessages);
+    },
+    [store, runStream]
+  );
+
+  const handleEdit = useCallback(
+    (messageId: string, newContent: string) => {
+      const msgs = store.activeSession.messages;
+      const idx = msgs.findIndex((m) => m.id === messageId);
+      if (idx === -1) return;
+
+      const cleanedMessages = msgs.slice(0, idx);
+      store.truncateMessages(messageId);
+      runStream(newContent, cleanedMessages);
     },
     [store, runStream]
   );
 
   const handleStop = useCallback(() => {
     abortRef.current?.abort();
+    cleanupRef.current?.();
     setIsStreaming(false);
   }, []);
 
@@ -175,6 +234,9 @@ export default function PlaygroundLayout() {
           isStreaming={isStreaming}
           onDeleteMessage={store.deleteMessage}
           onRegenerate={handleRegenerate}
+          onEditMessage={handleEdit}
+          maxContextChats={store.maxContextChats}
+          onMaxContextChatsChange={store.setMaxContextChats}
         />
       </div>
 
@@ -190,6 +252,9 @@ export default function PlaygroundLayout() {
         provider={provider}
         onOpenProviderModal={() => setProviderModalOpen(true)}
         onOpenPromptBrowser={() => setPromptBrowserOpen(true)}
+        tools={tools}
+        onToolsChange={setTools}
+        supportedParams={supportedParams}
       />
 
       <ProviderModal

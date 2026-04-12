@@ -1,11 +1,20 @@
 import { useState } from "react";
+import { useTheme } from "next-themes";
 import { X, Copy, Check } from "lucide-react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { oneDark, oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
 
-// Remove background from all token styles
 const cleanOneDark = Object.fromEntries(
   Object.entries(oneDark).map(([key, value]) => [
+    key,
+    typeof value === "object" && value !== null
+      ? { ...value, background: "transparent", backgroundColor: "transparent" }
+      : value,
+  ])
+);
+
+const cleanOneLight = Object.fromEntries(
+  Object.entries(oneLight).map(([key, value]) => [
     key,
     typeof value === "object" && value !== null
       ? { ...value, background: "transparent", backgroundColor: "transparent" }
@@ -196,10 +205,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 export default function CodeSnippetsModal({ open, onClose, model, systemPrompt, params }: Props) {
+  const { resolvedTheme } = useTheme();
   const [activeLang, setActiveLang] = useState<LangId>("curl");
   const [copied, setCopied] = useState(false);
 
   if (!open) return null;
+
+  const prismStyle = resolvedTheme === "light" ? cleanOneLight : cleanOneDark;
 
   const code = generateSnippet(activeLang, model, systemPrompt, params);
 
@@ -250,18 +262,18 @@ export default function CodeSnippetsModal({ open, onClose, model, systemPrompt, 
           </button>
           <SyntaxHighlighter
             language={LANGUAGES.find((l) => l.id === activeLang)?.syntax ?? "bash"}
-            style={cleanOneDark}
+            style={prismStyle}
             customStyle={{
               margin: 0,
               borderRadius: "0.375rem",
               fontSize: "0.75rem",
               lineHeight: "1.625",
-              border: "1px solid hsl(220 12% 16%)",
-              background: "hsl(220 14% 6%)",
+              border: "1px solid hsl(var(--border))",
+              background: "hsl(var(--code-block-bg))",
             }}
             codeTagProps={{ style: { background: "transparent" } }}
             showLineNumbers
-            lineNumberStyle={{ color: "hsl(215 12% 28%)", fontSize: "0.65rem" }}
+            lineNumberStyle={{ color: "hsl(var(--muted-foreground))", fontSize: "0.65rem" }}
           >
             {code}
           </SyntaxHighlighter>

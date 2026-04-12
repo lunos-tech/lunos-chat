@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { X, Bookmark, ChevronRight, ChevronDown, Code2, Wrench, Globe } from "lucide-react";
 import type { ModelParams } from "@/types/chat";
-import { DEFAULT_MODELS, DEFAULT_PRESETS } from "@/types/chat";
+import { DEFAULT_PRESETS } from "@/types/chat";
 import CodeSnippetsModal from "./CodeSnippetsModal";
 import ToolsModal, { type ToolDefinition } from "./ToolsModal";
 import type { ProviderConfig } from "./ProviderModal";
@@ -18,6 +18,9 @@ interface Props {
   provider?: ProviderConfig | null;
   onOpenProviderModal?: () => void;
   onOpenPromptBrowser?: () => void;
+  tools: ToolDefinition[];
+  onToolsChange: (tools: ToolDefinition[]) => void;
+  supportedParams?: string[] | null;
 }
 
 function Slider({
@@ -54,12 +57,16 @@ function Slider({
   );
 }
 
-export default function ControlPanel({ model, onModelChange, systemPrompt, onSystemPromptChange, params, onParamsChange, open, onClose, provider, onOpenProviderModal, onOpenPromptBrowser }: Props) {
+export default function ControlPanel({ model, onModelChange, systemPrompt, onSystemPromptChange, params, onParamsChange, open, onClose, provider, onOpenProviderModal, onOpenPromptBrowser, tools, onToolsChange, supportedParams }: Props) {
   const [snippetsOpen, setSnippetsOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
-  const [tools, setTools] = useState<ToolDefinition[]>([]);
   const [paramsOpen, setParamsOpen] = useState(true);
-  const modelInfo = DEFAULT_MODELS.find((m) => m.id === model);
+
+  // Helper: check if a parameter is supported by the current model
+  // null = no data, treat as all supported
+  const supports = (param: string) => !supportedParams || supportedParams.includes(param);
+  const hasAnyParam = supports("temperature") || supports("top_p") || supports("max_tokens");
+
 
   const updateParam = (key: keyof ModelParams, value: number) => {
     onParamsChange({ ...params, [key]: value });
@@ -155,7 +162,12 @@ export default function ControlPanel({ model, onModelChange, systemPrompt, onSys
               onClick={() => setParamsOpen((v) => !v)}
               className="flex w-full items-center justify-between text-xs font-semibold tracking-wider text-text-tertiary hover:text-foreground transition-colors"
             >
-              PARAMETERS
+              <span className="flex items-center gap-2">
+                PARAMETERS
+                {!hasAnyParam && supportedParams && (
+                  <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[9px] font-normal text-text-tertiary">NOT SUPPORTED</span>
+                )}
+              </span>
               <ChevronDown
                 size={14}
                 className={`transition-transform duration-200 ${paramsOpen ? "rotate-0" : "-rotate-90"}`}
@@ -164,24 +176,35 @@ export default function ControlPanel({ model, onModelChange, systemPrompt, onSys
             <div
               className={`space-y-4 overflow-hidden transition-all duration-200 ${paramsOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"}`}
             >
-              <Slider label="Temperature" value={params.temperature} onChange={(v) => updateParam("temperature", v)} min={0} max={2} step={0.05} />
-              <Slider label="Top P" value={params.topP} onChange={(v) => updateParam("topP", v)} min={0} max={1} step={0.05} />
-              <Slider label="Max Tokens" value={params.maxTokens} onChange={(v) => updateParam("maxTokens", v)} min={256} max={16384} step={256} />
+              {supports("temperature") && (
+                <Slider label="Temperature" value={params.temperature} onChange={(v) => updateParam("temperature", v)} min={0} max={2} step={0.05} />
+              )}
+              {supports("top_p") && (
+                <Slider label="Top P" value={params.topP} onChange={(v) => updateParam("topP", v)} min={0} max={1} step={0.05} />
+              )}
+              {supports("max_tokens") && (
+                <Slider label="Max Tokens" value={params.maxTokens} onChange={(v) => updateParam("maxTokens", v)} min={256} max={16384} step={256} />
+              )}
+              {!hasAnyParam && supportedParams && (
+                <p className="text-[11px] italic text-text-tertiary">This model does not support parameter tuning.</p>
+              )}
             </div>
           </div>
 
           {/* Tools / Function Calling */}
-          <div className="space-y-2">
-            <label className="text-xs font-semibold tracking-wider text-text-tertiary">TOOLS</label>
-            <button
-              onClick={() => setToolsOpen(true)}
-              className="flex w-full items-center gap-2.5 rounded-md border border-border bg-surface-2 px-3 py-2.5 text-left text-sm font-medium text-foreground transition-colors hover:border-primary/30"
-            >
-              <Wrench size={14} className="text-primary" />
-              {tools.length > 0 ? `${tools.length} tool${tools.length > 1 ? "s" : ""} defined` : "Define Tools"}
-              <ChevronRight size={14} className="ml-auto text-text-tertiary" />
-            </button>
-          </div>
+          {supports("tools") && (
+            <div className="space-y-2">
+              <label className="text-xs font-semibold tracking-wider text-text-tertiary">TOOLS</label>
+              <button
+                onClick={() => setToolsOpen(true)}
+                className="flex w-full items-center gap-2.5 rounded-md border border-border bg-surface-2 px-3 py-2.5 text-left text-sm font-medium text-foreground transition-colors hover:border-primary/30"
+              >
+                <Wrench size={14} className="text-primary" />
+                {tools.length > 0 ? `${tools.length} tool${tools.length > 1 ? "s" : ""} defined` : "Define Tools"}
+                <ChevronRight size={14} className="ml-auto text-text-tertiary" />
+              </button>
+            </div>
+          )}
 
           {/* Code Snippets */}
           <div className="space-y-2">
@@ -210,7 +233,7 @@ export default function ControlPanel({ model, onModelChange, systemPrompt, onSys
         open={toolsOpen}
         onClose={() => setToolsOpen(false)}
         tools={tools}
-        onToolsChange={setTools}
+        onToolsChange={onToolsChange}
       />
     </>
   );

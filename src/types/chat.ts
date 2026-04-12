@@ -5,6 +5,7 @@ export interface MessageMetadata {
   tps?: number;
   cost?: number;
   duration?: number;
+  contextMessageCount?: number;
 }
 
 export interface ChatMessage {
@@ -67,6 +68,17 @@ export const DEFAULT_PARAMS: ModelParams = {
   topP: 1,
   maxTokens: 4096,
 };
+
+export const CONTEXT_WINDOW_CHAT_OPTIONS = [4, 8, 16, 32, 64] as const;
+
+export type ContextWindowChats = (typeof CONTEXT_WINDOW_CHAT_OPTIONS)[number] | "all";
+
+export function sliceMessagesForContext<T>(messages: T[], max: ContextWindowChats): T[] {
+  if (max === "all" || messages.length <= max) return messages;
+  return messages.slice(-max);
+}
+
+export const DEFAULT_CONTEXT_WINDOW_CHATS: ContextWindowChats = 8;
 
 export const DEFAULT_PRESETS: PromptPreset[] = [
   { id: "default", name: "Default", prompt: "You are a helpful AI assistant.", icon: "💬" },

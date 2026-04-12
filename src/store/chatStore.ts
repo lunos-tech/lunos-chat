@@ -1,8 +1,44 @@
-import { useState, useCallback } from "react";
-import type { ChatSession, ChatMessage, ModelParams, MessageMetadata } from "@/types/chat";
-import { DEFAULT_PARAMS, DEFAULT_PRESETS } from "@/types/chat";
+import { useState, useCallback, useEffect, useRef } from "react";
+import type { ChatSession, ChatMessage, ModelParams, MessageMetadata, ContextWindowChats } from "@/types/chat";
+import { DEFAULT_PARAMS, DEFAULT_PRESETS, DEFAULT_CONTEXT_WINDOW_CHATS } from "@/types/chat";
 
 const createId = () => crypto.randomUUID();
+
+const SESSIONS_STORAGE_KEY = "lunos-chat-sessions";
+const ACTIVE_SESSION_KEY = "lunos-active-session";
+
+// ─── localStorage helpers ────────────────────────────────────────────
+
+function loadSessions(): ChatSession[] {
+  try {
+    const raw = localStorage.getItem(SESSIONS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as ChatSession[];
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {
+    // ignore corrupt data
+  }
+  return [];
+}
+
+function saveSessions(sessions: ChatSession[]) {
+  try {
+    localStorage.setItem(SESSIONS_STORAGE_KEY, JSON.stringify(sessions));
+  } catch {
+    // storage full — silently ignore
+  }
+}
+
+function loadActiveSessionId(): string | null {
+  return localStorage.getItem(ACTIVE_SESSION_KEY);
+}
+
+function saveActiveSessionId(id: string) {
+  localStorage.setItem(ACTIVE_SESSION_KEY, id);
+}
+
+// ─── factory ─────────────────────────────────────────────────────────
 
 function createSession(model: string): ChatSession {
   return {
@@ -16,12 +52,40 @@ function createSession(model: string): ChatSession {
   };
 }
 
+// ─── hook ────────────────────────────────────────────────────────────
+
 export function useChatStore() {
-  const [sessions, setSessions] = useState<ChatSession[]>(() => [createSession("gpt-4o")]);
-  const [activeSessionId, setActiveSessionId] = useState<string>(() => sessions[0].id);
+  const [sessions, setSessions] = useState<ChatSession[]>(() => {
+    const loaded = loadSessions();
+    return loaded.length > 0 ? loaded : [createSession("gpt-4o")];
+  });
+
+  const [activeSessionId, setActiveSessionId] = useState<string>(() => {
+    const storedId = loadActiveSessionId();
+    if (storedId && sessions.some((s) => s.id === storedId)) return storedId;
+    return sessions[0].id;
+  });
+
   const [params, setParams] = useState<ModelParams>(DEFAULT_PARAMS);
+  const [maxContextChats, setMaxContextChats] = useState<ContextWindowChats>(DEFAULT_CONTEXT_WINDOW_CHATS);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [controlPanelOpen, setControlPanelOpen] = useState(false);
+
+  // Persist sessions to localStorage whenever they change
+  // Use a ref so the effect doesn't fire on mount with default data
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    saveSessions(sessions);
+  }, [sessions]);
+
+  // Persist active session id
+  useEffect(() => {
+    saveActiveSessionId(activeSessionId);
+  }, [activeSessionId]);
 
   const activeSession = sessions.find((s) => s.id === activeSessionId) ?? sessions[0];
 
@@ -39,9 +103,19 @@ export function useChatStore() {
         ...s,
         messages: [...s.messages, message],
         updatedAt: Date.now(),
-        title: s.messages.length === 0 && msg.role === "user" ? msg.content.slice(0, 40) : s.title,
       }));
       return message;
+    },
+    [activeSessionId, updateSession]
+  );
+
+  const updateSessionTitle = useCallback(
+    (title: string) => {
+      updateSession(activeSessionId, (s) => ({
+        ...s,
+        title,
+        updatedAt: Date.now(),
+      }));
     },
     [activeSessionId, updateSession]
   );
@@ -108,6 +182,21 @@ export function useChatStore() {
     [activeSessionId, updateSession]
   );
 
+  const truncateMessages = useCallback(
+    (messageId: string) => {
+      updateSession(activeSessionId, (s) => {
+        const idx = s.messages.findIndex((m) => m.id === messageId);
+        if (idx === -1) return s;
+        return {
+          ...s,
+          messages: s.messages.slice(0, idx),
+          updatedAt: Date.now(),
+        };
+      });
+    },
+    [activeSessionId, updateSession]
+  );
+
   return {
     sessions,
     activeSession,
@@ -115,16 +204,20 @@ export function useChatStore() {
     setActiveSessionId,
     params,
     setParams,
+    maxContextChats,
+    setMaxContextChats,
     sidebarOpen,
     setSidebarOpen,
     controlPanelOpen,
     setControlPanelOpen,
     addMessage,
+    updateSessionTitle,
     updateLastAssistantMessage,
     setSystemPrompt,
     setModel,
     newChat,
     deleteSession,
     deleteMessage,
+    truncateMessages,
   };
 }

@@ -1,15 +1,25 @@
 import { memo, useState, useRef, useEffect } from "react";
+import { useTheme } from "next-themes";
 import { Copy, Check, RotateCcw, Pencil, Trash2, ChevronDown, Info } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { oneDark, oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
 import type { ChatMessage as Msg } from "@/types/chat";
-import { DEFAULT_MODELS } from "@/types/chat";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Remove background from all token styles
 const cleanOneDark = Object.fromEntries(
   Object.entries(oneDark).map(([key, value]) => [
+    key,
+    typeof value === "object" && value !== null
+      ? { ...value, background: "transparent", backgroundColor: "transparent" }
+      : value,
+  ])
+);
+
+const cleanOneLight = Object.fromEntries(
+  Object.entries(oneLight).map(([key, value]) => [
     key,
     typeof value === "object" && value !== null
       ? { ...value, background: "transparent", backgroundColor: "transparent" }
@@ -115,6 +125,12 @@ function MetadataDropdown({ message }: { message: Msg }) {
                 <span className="font-mono text-foreground">{meta.duration.toFixed(1)}s</span>
               </div>
             )}
+            {meta.contextMessageCount != null && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-text-secondary">Context msgs</span>
+                <span className="font-mono text-foreground">{meta.contextMessageCount}</span>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -123,8 +139,17 @@ function MetadataDropdown({ message }: { message: Msg }) {
 }
 
 export default memo(function ChatMessage({ message, onRegenerate, onEdit, onDelete }: Props) {
+  const { resolvedTheme } = useTheme();
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState("");
   const isUser = message.role === "user";
-  const modelInfo = message.model ? DEFAULT_MODELS.find((m) => m.id === message.model) : null;
+  const codeStyle = resolvedTheme === "light" ? cleanOneLight : cleanOneDark;
+
+  const handleEditSubmit = () => {
+    if (!editContent.trim() || !onEdit) return;
+    onEdit(editContent);
+    setIsEditing(false);
+  };
 
   return (
     <div className={`group px-4 py-4 ${isUser ? "" : "bg-surface-1/40"}`}>
@@ -132,77 +157,122 @@ export default memo(function ChatMessage({ message, onRegenerate, onEdit, onDele
         {/* Header */}
         <div className="mb-1.5 flex items-center gap-2">
           <span className={`font-mono text-xs font-medium tracking-wider ${isUser ? "text-primary" : "text-text-secondary"}`}>
-            {isUser ? "YOU" : modelInfo?.name ?? "AI"}
+            {isUser ? "YOU" : message.model ?? "AI"}
           </span>
-          {modelInfo && (
-            <span className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-text-tertiary">
-              {modelInfo.provider}
-            </span>
-          )}
         </div>
 
         {/* Content */}
-        <div className="text-sm leading-relaxed text-foreground">
-          {message.isStreaming && !message.content ? (
-            <TypingIndicator />
-          ) : (
-            <ReactMarkdown
-              components={{
-                code({ className, children, ...props }) {
-                  const match = /language-(\w+)/.exec(className || "");
-                  const codeStr = String(children).replace(/\n$/, "");
-                  if (match) {
-                    return (
-                      <div className="my-3 overflow-hidden rounded-md border border-border">
-                        <div className="flex items-center justify-between bg-surface-2 px-3 py-1.5">
-                          <span className="font-mono text-[11px] text-text-tertiary">{match[1]}</span>
-                          <CopyButton text={codeStr} />
+        {isEditing ? (
+          <div className="mt-2">
+            <textarea
+              autoFocus
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              className="w-full resize-y rounded-md border border-border bg-background p-3 text-sm text-foreground focus:border-primary/40 focus:outline-none"
+              rows={Math.max(3, editContent.split("\n").length)}
+            />
+            <div className="mt-2 flex justify-end gap-2">
+              <button
+                onClick={() => setIsEditing(false)}
+                className="rounded-md px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:bg-surface-2 hover:text-foreground"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleEditSubmit}
+                disabled={!editContent.trim() || editContent === message.content}
+                className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50"
+              >
+                Save & Submit
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="text-sm leading-relaxed text-foreground">
+            {message.isStreaming && !message.content ? (
+              <TypingIndicator />
+            ) : (
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  code({ className, children, ...props }) {
+                    const match = /language-(\w+)/.exec(className || "");
+                    const codeStr = String(children).replace(/\n$/, "");
+                    if (match) {
+                      return (
+                        <div className="my-3 overflow-hidden rounded-md border border-border">
+                          <div className="flex items-center justify-between bg-surface-2 px-3 py-1.5">
+                            <span className="font-mono text-[11px] text-text-tertiary">{match[1]}</span>
+                            <CopyButton text={codeStr} />
+                          </div>
+                          <SyntaxHighlighter
+                            style={codeStyle}
+                            language={match[1]}
+                            PreTag="div"
+                            customStyle={{ margin: 0, background: "hsl(var(--code-block-bg))", fontSize: "13px", padding: "12px 16px" }}
+                            codeTagProps={{ style: { background: "transparent" } }}
+                          >
+                            {codeStr}
+                          </SyntaxHighlighter>
                         </div>
-                        <SyntaxHighlighter
-                          style={cleanOneDark}
-                          language={match[1]}
-                          PreTag="div"
-                          customStyle={{ margin: 0, background: "hsl(220, 13%, 7%)", fontSize: "13px", padding: "12px 16px" }}
-                          codeTagProps={{ style: { background: "transparent" } }}
-                        >
-                          {codeStr}
-                        </SyntaxHighlighter>
+                      );
+                    }
+                    return (
+                      <code className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[13px] text-primary" {...props}>
+                        {children}
+                      </code>
+                    );
+                  },
+                  p({ children }) {
+                    return <p className="mb-3 last:mb-0">{children}</p>;
+                  },
+                  ul({ children }) {
+                    return <ul className="mb-3 ml-4 list-disc space-y-1 last:mb-0">{children}</ul>;
+                  },
+                  ol({ children }) {
+                    return <ol className="mb-3 ml-4 list-decimal space-y-1 last:mb-0">{children}</ol>;
+                  },
+                  h1({ children }) {
+                    return <h1 className="mb-3 mt-5 text-lg font-semibold">{children}</h1>;
+                  },
+                  h2({ children }) {
+                    return <h2 className="mb-2 mt-4 text-base font-semibold">{children}</h2>;
+                  },
+                  h3({ children }) {
+                    return <h3 className="mb-2 mt-3 text-sm font-semibold">{children}</h3>;
+                  },
+                  blockquote({ children }) {
+                    return <blockquote className="mb-3 border-l-2 border-primary/40 pl-3 text-text-secondary italic">{children}</blockquote>;
+                  },
+                  table({ children }) {
+                    return (
+                      <div className="my-3 overflow-x-auto rounded-md border border-border">
+                        <table className="w-full border-collapse text-xs">{children}</table>
                       </div>
                     );
-                  }
-                  return (
-                    <code className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[13px] text-primary" {...props}>
-                      {children}
-                    </code>
-                  );
-                },
-                p({ children }) {
-                  return <p className="mb-3 last:mb-0">{children}</p>;
-                },
-                ul({ children }) {
-                  return <ul className="mb-3 ml-4 list-disc space-y-1 last:mb-0">{children}</ul>;
-                },
-                ol({ children }) {
-                  return <ol className="mb-3 ml-4 list-decimal space-y-1 last:mb-0">{children}</ol>;
-                },
-                h1({ children }) {
-                  return <h1 className="mb-3 mt-5 text-lg font-semibold">{children}</h1>;
-                },
-                h2({ children }) {
-                  return <h2 className="mb-2 mt-4 text-base font-semibold">{children}</h2>;
-                },
-                h3({ children }) {
-                  return <h3 className="mb-2 mt-3 text-sm font-semibold">{children}</h3>;
-                },
-                blockquote({ children }) {
-                  return <blockquote className="mb-3 border-l-2 border-primary/40 pl-3 text-text-secondary italic">{children}</blockquote>;
-                },
-              }}
-            >
-              {message.content}
-            </ReactMarkdown>
-          )}
-        </div>
+                  },
+                  thead({ children }) {
+                    return <thead className="bg-surface-2">{children}</thead>;
+                  },
+                  tbody({ children }) {
+                    return <tbody className="divide-y divide-border">{children}</tbody>;
+                  },
+                  tr({ children }) {
+                    return <tr className="transition-colors hover:bg-surface-2/50">{children}</tr>;
+                  },
+                  th({ children }) {
+                    return <th className="px-3 py-2 text-left font-semibold text-text-secondary">{children}</th>;
+                  },
+                  td({ children }) {
+                    return <td className="px-3 py-2 text-foreground">{children}</td>;
+                  },
+                }}
+              >
+                {message.content}
+              </ReactMarkdown>
+            )}
+          </div>
+        )}
 
         {/* Actions */}
         {!message.isStreaming && (
@@ -221,10 +291,16 @@ export default memo(function ChatMessage({ message, onRegenerate, onEdit, onDele
                 </TooltipContent>
               </Tooltip>
             )}
-            {isUser && onEdit && (
+            {isUser && onEdit && !isEditing && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button onClick={() => onEdit(message.content)} className="rounded p-1 text-text-tertiary transition-colors hover:text-foreground">
+                  <button
+                    onClick={() => {
+                      setEditContent(message.content);
+                      setIsEditing(true);
+                    }}
+                    className="rounded p-1 text-text-tertiary transition-colors hover:text-foreground"
+                  >
                     <Pencil size={13} />
                   </button>
                 </TooltipTrigger>

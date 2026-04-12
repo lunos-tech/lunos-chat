@@ -1,4 +1,6 @@
-import { Plus, X, Trash2, MessageSquare, Globe, Github } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useTheme } from "next-themes";
+import { Plus, X, Trash2, MessageSquare, Globe, Github, Moon, Sun } from "lucide-react";
 import type { ChatSession } from "@/types/chat";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -13,6 +15,17 @@ interface Props {
 }
 
 export default function ChatSidebar({ sessions, activeId, onSelect, onNew, onDelete, open, onClose }: Props) {
+  const { resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const toggleColorMode = () => {
+    setTheme(resolvedTheme === "dark" ? "light" : "dark");
+  };
+
   return (
     <>
       {/* Mobile overlay */}
@@ -30,7 +43,28 @@ export default function ChatSidebar({ sessions, activeId, onSelect, onNew, onDel
           <div className="flex gap-1">
             <Tooltip>
               <TooltipTrigger asChild>
-                <button onClick={onNew} className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground">
+                <button
+                  type="button"
+                  onClick={toggleColorMode}
+                  className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
+                  aria-label="Toggle color theme"
+                >
+                  {!mounted ? (
+                    <Sun size={16} className="opacity-0" aria-hidden />
+                  ) : resolvedTheme === "dark" ? (
+                    <Sun size={16} aria-hidden />
+                  ) : (
+                    <Moon size={16} aria-hidden />
+                  )}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{mounted && resolvedTheme === "dark" ? "Light mode" : "Dark mode"}</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" onClick={onNew} className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground">
                   <Plus size={16} />
                 </button>
               </TooltipTrigger>
