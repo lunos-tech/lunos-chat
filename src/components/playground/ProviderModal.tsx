@@ -8,11 +8,11 @@ export interface ProviderConfig {
   apiKey: string;
 }
 
-const DEFAULT_PROVIDERS: (Omit<ProviderConfig, "apiKey"> & { apiKeyUrl?: string })[] = [
-  { id: "lunos", name: "Lunos AI", baseUrl: "https://api.lunos.tech/v1", apiKeyUrl: "https://lunos.tech/dashboard" },
-  { id: "openai", name: "OpenAI", baseUrl: "https://api.openai.com/v1", apiKeyUrl: "https://platform.openai.com/api-keys" },
-  { id: "anthropic", name: "Anthropic", baseUrl: "https://api.anthropic.com/v1", apiKeyUrl: "https://console.anthropic.com/settings/keys" },
-  { id: "google", name: "Google AI", baseUrl: "https://generativelanguage.googleapis.com/v1", apiKeyUrl: "https://aistudio.google.com/app/apikey" },
+const DEFAULT_PROVIDERS: (Omit<ProviderConfig, "apiKey"> & { apiKeyUrl?: string; icon?: string })[] = [
+  { id: "lunos", name: "Lunos AI", baseUrl: "https://api.lunos.tech/v1", apiKeyUrl: "https://lunos.tech/dashboard", icon: "/logo.png" },
+  { id: "openai", name: "OpenAI", baseUrl: "https://api.openai.com/v1", apiKeyUrl: "https://platform.openai.com/api-keys", icon: "/provider/openai.png" },
+  { id: "anthropic", name: "Anthropic", baseUrl: "https://api.anthropic.com/v1", apiKeyUrl: "https://console.anthropic.com/settings/keys", icon: "/provider/anthropic.svg" },
+  { id: "google", name: "Google AI", baseUrl: "https://generativelanguage.googleapis.com/v1", apiKeyUrl: "https://aistudio.google.com/app/apikey", icon: "/provider/gemini.svg" },
   { id: "groq", name: "Groq", baseUrl: "https://api.groq.com/openai/v1", apiKeyUrl: "https://console.groq.com/keys" },
   { id: "custom", name: "Custom Gateway", baseUrl: "" },
 ];
@@ -114,13 +114,19 @@ export default function ProviderModal({ open, onClose, onSave }: Props) {
                     : "border-border bg-surface-2 text-foreground hover:border-primary/30"
                     }`}
                 >
-                  {selectedId === provider.id && <Check size={12} />}
-                  <span className={selectedId === provider.id ? "" : "ml-5"}>{provider.name}</span>
-                  {provider.id === "lunos" && (
-                    <span className="ml-auto rounded bg-primary/20 px-1.5 py-0.5 text-[9px] font-bold tracking-wider text-primary">
+                  {provider.icon ? (
+                    <img src={provider.icon} alt={provider.name} className="w-4 h-4 object-contain shrink-0" />
+                  ) : (
+                    <Globe size={16} className={`shrink-0 ${selectedId === provider.id ? "text-primary" : "text-muted-foreground"}`} />
+                  )}
+                  <span className="flex-1 truncate">{provider.name}</span>
+                  {selectedId === provider.id ? (
+                    <Check size={14} className="shrink-0" />
+                  ) : provider.id === "lunos" ? (
+                    <span className="shrink-0 rounded bg-primary/20 px-1.5 py-0.5 text-[9px] font-bold tracking-wider text-primary">
                       REC
                     </span>
-                  )}
+                  ) : null}
                 </button>
               ))}
             </div>
