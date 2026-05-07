@@ -13,7 +13,7 @@ const DEFAULT_PROVIDERS: (Omit<ProviderConfig, "apiKey"> & { apiKeyUrl?: string;
   { id: "openai", name: "OpenAI", baseUrl: "https://api.openai.com/v1", apiKeyUrl: "https://platform.openai.com/api-keys", icon: "/provider/openai.png" },
   { id: "anthropic", name: "Anthropic", baseUrl: "https://api.anthropic.com/v1", apiKeyUrl: "https://console.anthropic.com/settings/keys", icon: "/provider/anthropic.svg" },
   { id: "google", name: "Google AI", baseUrl: "https://generativelanguage.googleapis.com/v1", apiKeyUrl: "https://aistudio.google.com/app/apikey", icon: "/provider/gemini.svg" },
-  { id: "groq", name: "Groq", baseUrl: "https://api.groq.com/openai/v1", apiKeyUrl: "https://console.groq.com/keys" },
+  { id: "groq", name: "Groq", baseUrl: "https://api.groq.com/openai/v1", apiKeyUrl: "https://console.groq.com/keys", icon: "/provider/groq.png" },
   { id: "custom", name: "Custom Gateway", baseUrl: "" },
 ];
 
@@ -105,30 +105,40 @@ export default function ProviderModal({ open, onClose, onSave }: Props) {
           <div className="space-y-2">
             <label className="text-xs font-semibold tracking-wider text-text-tertiary">SELECT PROVIDER</label>
             <div className="grid grid-cols-2 gap-2">
-              {DEFAULT_PROVIDERS.map((provider) => (
-                <button
-                  key={provider.id}
-                  onClick={() => setSelectedId(provider.id)}
-                  className={`flex items-center gap-2 rounded-md border px-3 py-2.5 text-left text-sm font-medium transition-colors ${selectedId === provider.id
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border bg-surface-2 text-foreground hover:border-primary/30"
-                    }`}
-                >
-                  {provider.icon ? (
-                    <img src={provider.icon} alt={provider.name} className="w-4 h-4 object-contain shrink-0" />
-                  ) : (
-                    <Globe size={16} className={`shrink-0 ${selectedId === provider.id ? "text-primary" : "text-muted-foreground"}`} />
-                  )}
-                  <span className="flex-1 truncate">{provider.name}</span>
-                  {selectedId === provider.id ? (
-                    <Check size={14} className="shrink-0" />
-                  ) : provider.id === "lunos" ? (
-                    <span className="shrink-0 rounded bg-primary/20 px-1.5 py-0.5 text-[9px] font-bold tracking-wider text-primary">
-                      REC
-                    </span>
-                  ) : null}
-                </button>
-              ))}
+              {DEFAULT_PROVIDERS.map((provider) => {
+                const isDisabled = ["openai", "anthropic", "google", "groq"].includes(provider.id);
+                return (
+                  <button
+                    key={provider.id}
+                    onClick={() => !isDisabled && setSelectedId(provider.id)}
+                    disabled={isDisabled}
+                    className={`flex items-center gap-2 rounded-md border px-3 py-2.5 text-left text-sm font-medium transition-colors ${selectedId === provider.id
+                      ? "border-primary bg-primary/10 text-primary"
+                      : isDisabled
+                        ? "border-border bg-surface-2 text-muted-foreground opacity-50 cursor-not-allowed"
+                        : "border-border bg-surface-2 text-foreground hover:border-primary/30"
+                      }`}
+                  >
+                    {provider.icon ? (
+                      <img src={provider.icon} alt={provider.name} className={`w-4 h-4 object-contain shrink-0 ${isDisabled ? "grayscale" : ""}`} />
+                    ) : (
+                      <Globe size={16} className={`shrink-0 ${selectedId === provider.id ? "text-primary" : "text-muted-foreground"}`} />
+                    )}
+                    <span className="flex-1 truncate">{provider.name}</span>
+                    {selectedId === provider.id ? (
+                      <Check size={14} className="shrink-0" />
+                    ) : isDisabled ? (
+                      <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[9px] font-bold tracking-wider text-muted-foreground">
+                        SOON
+                      </span>
+                    ) : provider.id === "lunos" ? (
+                      <span className="shrink-0 rounded bg-primary/20 px-1.5 py-0.5 text-[9px] font-bold tracking-wider text-primary">
+                        REC
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
