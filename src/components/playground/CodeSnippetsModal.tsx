@@ -31,12 +31,12 @@ interface Props {
 }
 
 const LANGUAGES = [
-  { id: "curl", name: "cURL", icon: "⌘", syntax: "bash" },
-  { id: "python", name: "Python", icon: "🐍", syntax: "python" },
-  { id: "javascript", name: "JavaScript", icon: "🟨", syntax: "javascript" },
-  { id: "typescript", name: "TypeScript", icon: "🔷", syntax: "typescript" },
-  { id: "go", name: "Go", icon: "🔵", syntax: "go" },
-  { id: "rust", name: "Rust", icon: "🦀", syntax: "rust" },
+  { id: "curl", name: "cURL", icon: "/lang/curl.png", syntax: "bash" },
+  { id: "python", name: "Python", icon: "/lang/python.png", syntax: "python" },
+  { id: "javascript", name: "JavaScript", icon: "/lang/javascript.png", syntax: "javascript" },
+  { id: "typescript", name: "TypeScript", icon: "/lang/typescript.png", syntax: "typescript" },
+  { id: "go", name: "Go", icon: "/lang/go.png", syntax: "go" },
+  { id: "rust", name: "Rust", icon: "/lang/rust.png", syntax: "rust" },
 ] as const;
 
 type LangId = (typeof LANGUAGES)[number]["id"];
@@ -245,7 +245,7 @@ export default function CodeSnippetsModal({ open, onClose, model, systemPrompt, 
                   : "text-muted-foreground hover:bg-secondary hover:text-foreground"
               }`}
             >
-              <span>{lang.icon}</span>
+              <img src={lang.icon} alt={lang.name} className="h-3.5 w-3.5 object-contain" />
               {lang.name}
             </button>
           ))}
