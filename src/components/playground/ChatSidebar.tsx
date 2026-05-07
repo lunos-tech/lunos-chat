@@ -128,7 +128,12 @@ export default function ChatSidebar({ sessions, activeId, onSelect, onNew, onDel
                 {group.items.map((s) => (
                   <button
                     key={s.id}
-                    onClick={() => { onSelect(s.id); onClose(); }}
+                    onClick={() => { 
+                      onSelect(s.id); 
+                      if (typeof window !== "undefined" && window.innerWidth < 1024) {
+                        onClose(); 
+                      }
+                    }}
                     className={`group flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm transition-colors ${
                       s.id === activeId
                         ? "bg-surface-2 text-foreground"

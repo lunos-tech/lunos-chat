@@ -1,11 +1,11 @@
 import { useRef, useEffect, useCallback } from "react";
 import ChatMessage from "./ChatMessage";
 import ChatInput from "./ChatInput";
-import type { ChatSession, ContextWindowChats } from "@/types/chat";
+import type { ChatSession, ContextWindowChats, Attachment } from "@/types/chat";
 
 interface Props {
   session: ChatSession;
-  onSend: (msg: string) => void;
+  onSend: (msg: string, attachments: Attachment[], webSearch: boolean) => void;
   onStop?: () => void;
   isStreaming: boolean;
   onDeleteMessage?: (id: string) => void;

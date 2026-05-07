@@ -1,5 +1,24 @@
 export type MessageRole = "user" | "assistant" | "system";
 
+// ─── Multimodal attachments ──────────────────────────────────────────
+
+export type AttachmentType = "image" | "pdf" | "audio" | "video";
+
+export interface Attachment {
+  id: string;
+  type: AttachmentType;
+  /** Original file name */
+  name: string;
+  /** MIME type, e.g. image/png, application/pdf */
+  mime: string;
+  /** File size in bytes */
+  size: number;
+  /** base64 data-URL (data:<mime>;base64,...) or raw base64 for audio */
+  dataUrl: string;
+  /** Object URL for local preview (revoked after unmount) */
+  previewUrl?: string;
+}
+
 export interface MessageMetadata {
   tokenCount?: number;
   tps?: number;
@@ -16,6 +35,8 @@ export interface ChatMessage {
   timestamp: number;
   isStreaming?: boolean;
   metadata?: MessageMetadata;
+  /** Multimodal attachments (images, PDFs, audio, video) */
+  attachments?: Attachment[];
 }
 
 export interface ChatSession {

@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState, useEffect } from "react";
+import type { ChatSession, ChatMessage, ModelParams, MessageMetadata, ContextWindowChats, Attachment } from "@/types/chat";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useChatStore } from "@/store/chatStore";
@@ -74,7 +75,7 @@ export default function PlaygroundLayout() {
   }, []);
 
   const runStream = useCallback(
-    (userContent?: string, existingMessages?: typeof store.activeSession.messages) => {
+    (userContent?: string, existingMessages?: typeof store.activeSession.messages, attachments?: Attachment[], webSearch?: boolean) => {
       const currentProvider = getStoredProvider();
       if (!currentProvider) {
         toast.error("Please configure your AI provider first");
@@ -86,8 +87,13 @@ export default function PlaygroundLayout() {
       const isFirstMessage = currentMessages.length === 0 && !!userContent;
 
       // Add user message first
-      if (userContent) {
-        store.addMessage({ role: "user", content: userContent, model: store.activeSession.model });
+      if (userContent || (attachments && attachments.length > 0)) {
+        store.addMessage({
+          role: "user",
+          content: userContent || "",
+          model: store.activeSession.model,
+          attachments: attachments && attachments.length > 0 ? attachments : undefined,
+        });
       }
 
       // Add empty assistant message placeholder
@@ -110,10 +116,17 @@ export default function PlaygroundLayout() {
       }
 
       // Build messages snapshot for the API call
-      const messagesForApi = [
+      const messagesForApi: ChatMessage[] = [
         ...currentMessages,
-        ...(userContent
-          ? [{ id: "", role: "user" as const, content: userContent, model: store.activeSession.model, timestamp: Date.now() }]
+        ...((userContent || (attachments && attachments.length > 0))
+          ? [{
+              id: "",
+              role: "user" as const,
+              content: userContent || "",
+              model: store.activeSession.model,
+              timestamp: Date.now(),
+              attachments: attachments && attachments.length > 0 ? attachments : undefined,
+            }]
           : []),
       ];
 
@@ -127,6 +140,7 @@ export default function PlaygroundLayout() {
         store.maxContextChats,
         store.params,
         tools,
+        webSearch ?? false,
         {
           onDelta: (delta) => {
             accumulated += delta;
@@ -166,13 +180,13 @@ export default function PlaygroundLayout() {
   );
 
   const handleSend = useCallback(
-    (content: string) => {
+    (content: string, attachments: Attachment[], webSearch: boolean) => {
       if (!isProviderConfigured()) {
         toast.error("Please configure your AI provider first");
         setProviderModalOpen(true);
         return;
       }
-      runStream(content);
+      runStream(content, undefined, attachments, webSearch);
     },
     [runStream]
   );

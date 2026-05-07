@@ -1,11 +1,11 @@
 import { memo, useState, useRef, useEffect } from "react";
 import { useTheme } from "next-themes";
-import { Copy, Check, RotateCcw, Pencil, Trash2, ChevronDown, Info } from "lucide-react";
+import { Copy, Check, RotateCcw, Pencil, Trash2, ChevronDown, Info, FileText, Film, Music } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark, oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
-import type { ChatMessage as Msg } from "@/types/chat";
+import type { ChatMessage as Msg, Attachment } from "@/types/chat";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Remove background from all token styles
@@ -138,6 +138,46 @@ function MetadataDropdown({ message }: { message: Msg }) {
   );
 }
 
+function AttachmentDisplay({ attachment }: { attachment: Attachment }) {
+  if (attachment.type === "image") {
+    return (
+      <a href={attachment.dataUrl} target="_blank" rel="noopener noreferrer" className="block">
+        <img
+          src={attachment.previewUrl || attachment.dataUrl}
+          alt={attachment.name}
+          className="max-h-48 max-w-xs rounded-md border border-border object-cover transition-opacity hover:opacity-80"
+        />
+      </a>
+    );
+  }
+
+  if (attachment.type === "audio") {
+    return (
+      <div className="flex flex-col gap-1 rounded-md border border-border bg-surface-2/60 p-2">
+        <div className="flex items-center gap-2 text-xs text-text-secondary">
+          <Music size={12} />
+          <span className="truncate">{attachment.name}</span>
+        </div>
+        <audio controls src={attachment.dataUrl} className="h-8 w-56" />
+      </div>
+    );
+  }
+
+  // PDF, video, and other file types
+  const IconComponent = attachment.type === "video" ? Film : FileText;
+  return (
+    <div className="flex items-center gap-2 rounded-md border border-border bg-surface-2/60 px-3 py-2 text-xs">
+      <IconComponent size={14} className="shrink-0 text-text-tertiary" />
+      <span className="truncate font-medium text-foreground">{attachment.name}</span>
+      <span className="shrink-0 text-text-tertiary">
+        {attachment.size < 1024 * 1024
+          ? `${(attachment.size / 1024).toFixed(1)} KB`
+          : `${(attachment.size / (1024 * 1024)).toFixed(1)} MB`}
+      </span>
+    </div>
+  );
+}
+
 export default memo(function ChatMessage({ message, onRegenerate, onEdit, onDelete }: Props) {
   const { resolvedTheme } = useTheme();
   const [isEditing, setIsEditing] = useState(false);
@@ -160,6 +200,15 @@ export default memo(function ChatMessage({ message, onRegenerate, onEdit, onDele
             {isUser ? "YOU" : message.model ?? "AI"}
           </span>
         </div>
+
+        {/* Attachments */}
+        {message.attachments && message.attachments.length > 0 && (
+          <div className="mb-2 flex flex-wrap gap-2">
+            {message.attachments.map((att) => (
+              <AttachmentDisplay key={att.id} attachment={att} />
+            ))}
+          </div>
+        )}
 
         {/* Content */}
         {isEditing ? (

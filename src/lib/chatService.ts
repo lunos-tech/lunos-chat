@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions";
 import type { ProviderConfig } from "@/components/playground/ProviderModal";
-import type { ModelParams, ChatMessage, ContextWindowChats } from "@/types/chat";
+import type { ModelParams, ChatMessage, ContextWindowChats, Attachment } from "@/types/chat";
 import type { ToolDefinition } from "@/components/playground/ToolsModal";
 import { sliceMessagesForContext } from "@/types/chat";
 
@@ -43,7 +43,52 @@ function buildTools(tools: ToolDefinition[]): ChatCompletionTool[] | undefined {
   });
 }
 
-/** Build the messages array for the API call */
+/**
+ * Convert attachments into OpenAI-compatible content blocks.
+ *
+ * Formats per the Lunos docs:
+ * - image   → { type: "image_url", image_url: { url } }
+ * - pdf     → { type: "file", file: { filename, file_data } }
+ * - audio   → { type: "input_audio", input_audio: { data, format } }
+ * - video   → { type: "video_url", video_url: { url } }
+ */
+function attachmentToContentBlock(att: Attachment): Record<string, unknown> {
+  switch (att.type) {
+    case "image":
+      return {
+        type: "image_url",
+        image_url: { url: att.dataUrl },
+      };
+    case "pdf":
+      return {
+        type: "file",
+        file: {
+          filename: att.name,
+          file_data: att.dataUrl,
+        },
+      };
+    case "audio": {
+      // Extract raw base64 and format from the data URL
+      const rawBase64 = att.dataUrl.includes(",") ? att.dataUrl.split(",")[1] : att.dataUrl;
+      // Derive format from MIME: audio/wav → wav, audio/mpeg → mp3
+      let format = att.mime.split("/")[1] || "wav";
+      // Strip any extra parameters like ;codecs=opus
+      format = format.split(";")[0];
+      if (format === "mpeg") format = "mp3";
+      return {
+        type: "input_audio",
+        input_audio: { data: rawBase64, format },
+      };
+    }
+    case "video":
+      return {
+        type: "video_url",
+        video_url: { url: att.dataUrl },
+      };
+  }
+}
+
+/** Build the messages array for the API call, including multimodal content */
 function buildMessages(
   systemPrompt: string,
   chatMessages: ChatMessage[],
@@ -58,7 +103,24 @@ function buildMessages(
   const sliced = sliceMessagesForContext(chatMessages, maxContext);
   for (const m of sliced) {
     if (m.role === "user" || m.role === "assistant") {
-      msgs.push({ role: m.role, content: m.content });
+      // If user message has attachments, build a content array
+      if (m.role === "user" && m.attachments && m.attachments.length > 0) {
+        const contentParts: Array<Record<string, unknown>> = [];
+
+        // Text first (if present)
+        if (m.content.trim()) {
+          contentParts.push({ type: "text", text: m.content });
+        }
+
+        // Then attachment blocks
+        for (const att of m.attachments) {
+          contentParts.push(attachmentToContentBlock(att));
+        }
+
+        msgs.push({ role: "user", content: contentParts as any });
+      } else {
+        msgs.push({ role: m.role, content: m.content });
+      }
     }
   }
 
@@ -118,6 +180,7 @@ export function streamChat(
   maxContext: ContextWindowChats,
   params: ModelParams,
   tools: ToolDefinition[],
+  webSearch: boolean,
   callbacks: StreamCallbacks,
   signal: AbortSignal,
   supportedParams?: string[] | null,
@@ -131,6 +194,14 @@ export function streamChat(
 
   const openaiTools = supports("tools") ? buildTools(tools) : undefined;
 
+  // Build combined tools array (function tools + web search)
+  let allTools: any[] | undefined;
+  if (webSearch || openaiTools) {
+    allTools = [];
+    if (openaiTools) allTools.push(...openaiTools);
+    if (webSearch) allTools.push({ type: "web_search" });
+  }
+
   let cancelled = false;
 
   const run = async () => {
@@ -142,7 +213,7 @@ export function streamChat(
         ...(supports("top_p") ? { top_p: params.topP } : {}),
         ...(supports("max_tokens") ? { max_tokens: params.maxTokens } : {}),
         stream: true,
-        ...(openaiTools ? { tools: openaiTools } : {}),
+        ...(allTools ? { tools: allTools } : {}),
       });
 
       let accumulated = "";

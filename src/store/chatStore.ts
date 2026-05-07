@@ -68,7 +68,12 @@ export function useChatStore() {
 
   const [params, setParams] = useState<ModelParams>(DEFAULT_PARAMS);
   const [maxContextChats, setMaxContextChats] = useState<ContextWindowChats>(DEFAULT_CONTEXT_WINDOW_CHATS);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    if (typeof window !== "undefined") {
+      return window.innerWidth >= 1024; // Open on desktop by default
+    }
+    return true;
+  });
   const [controlPanelOpen, setControlPanelOpen] = useState(false);
 
   // Persist sessions to localStorage whenever they change
@@ -152,7 +157,9 @@ export function useChatStore() {
     const session = createSession(activeSession.model);
     setSessions((prev) => [session, ...prev]);
     setActiveSessionId(session.id);
-    setSidebarOpen(false);
+    if (typeof window !== "undefined" && window.innerWidth < 1024) {
+      setSidebarOpen(false);
+    }
   }, [activeSession.model]);
 
   const deleteSession = useCallback(
