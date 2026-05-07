@@ -110,8 +110,8 @@ export default function ProviderModal({ open, onClose, onSave }: Props) {
                   key={provider.id}
                   onClick={() => setSelectedId(provider.id)}
                   className={`flex items-center gap-2 rounded-md border px-3 py-2.5 text-left text-sm font-medium transition-colors ${selectedId === provider.id
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border bg-surface-2 text-foreground hover:border-primary/30"
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-surface-2 text-foreground hover:border-primary/30"
                     }`}
                 >
                   {selectedId === provider.id && <Check size={12} />}

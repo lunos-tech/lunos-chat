@@ -222,6 +222,7 @@ export default function PlaygroundLayout() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar
+          sidebarOpen={store.sidebarOpen}
           model={store.activeSession.model}
           onToggleSidebar={() => store.setSidebarOpen(!store.sidebarOpen)}
           onToggleControls={() => store.setControlPanelOpen(!store.controlPanelOpen)}

@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useTheme } from "next-themes";
-import { Plus, X, Trash2, MessageSquare, Globe, Github, Moon, Sun } from "lucide-react";
+import { Plus, X, Trash2, Globe, Github, Moon, Sun } from "lucide-react";
 import type { ChatSession } from "@/types/chat";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -26,6 +26,38 @@ export default function ChatSidebar({ sessions, activeId, onSelect, onNew, onDel
     setTheme(resolvedTheme === "dark" ? "light" : "dark");
   };
 
+  const groupedSessions = useMemo(() => {
+    const groups: { label: string; items: ChatSession[] }[] = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    sessions.forEach((s) => {
+      const d = new Date(s.createdAt);
+      d.setHours(0, 0, 0, 0);
+      
+      let label = "";
+      if (d.getTime() === today.getTime()) {
+        label = "Today";
+      } else if (d.getTime() === yesterday.getTime()) {
+        label = "Yesterday";
+      } else {
+        label = d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+      }
+
+      let group = groups.find((g) => g.label === label);
+      if (!group) {
+        group = { label, items: [] };
+        groups.push(group);
+      }
+      group.items.push(s);
+    });
+    
+    return groups;
+  }, [sessions]);
+
   return (
     <>
       {/* Mobile overlay */}
@@ -33,8 +65,8 @@ export default function ChatSidebar({ sessions, activeId, onSelect, onNew, onDel
         <div className="fixed inset-0 z-40 bg-background/80 lg:hidden" onClick={onClose} />
       )}
       <aside
-        className={`fixed left-0 top-0 z-50 flex h-full w-72 flex-col border-r border-border bg-sidebar transition-transform duration-200 ease-out lg:relative lg:z-auto lg:translate-x-0 ${
-          open ? "translate-x-0" : "-translate-x-full"
+        className={`fixed left-0 top-0 z-50 flex h-full w-72 flex-col border-r border-border bg-sidebar transition-all duration-300 ease-in-out lg:relative lg:z-auto ${
+          open ? "translate-x-0 lg:ml-0" : "-translate-x-full lg:-ml-72"
         }`}
       >
         {/* Header */}
@@ -87,32 +119,40 @@ export default function ChatSidebar({ sessions, activeId, onSelect, onNew, onDel
 
         {/* Sessions list */}
         <div className="flex-1 overflow-y-auto p-2">
-          {sessions.map((s) => (
-            <button
-              key={s.id}
-              onClick={() => { onSelect(s.id); onClose(); }}
-              className={`group flex w-full items-center gap-2.5 rounded-md px-3 py-2.5 text-left text-sm transition-colors ${
-                s.id === activeId
-                  ? "bg-surface-2 text-foreground"
-                  : "text-text-secondary hover:bg-surface-2/50 hover:text-foreground"
-              }`}
-            >
-              <MessageSquare size={14} className="shrink-0 text-muted-foreground" />
-              <span className="flex-1 truncate">{s.title}</span>
-              <Tooltip>
-                <TooltipTrigger asChild>
+          {groupedSessions.map((group) => (
+            <div key={group.label} className="mb-4 last:mb-0">
+              <div className="mb-1 px-3 py-1">
+                <span className="text-[10px] font-bold tracking-wider text-text-tertiary uppercase">{group.label}</span>
+              </div>
+              <div className="space-y-0.5">
+                {group.items.map((s) => (
                   <button
-                    onClick={(e) => { e.stopPropagation(); onDelete(s.id); }}
-                    className="shrink-0 rounded p-0.5 opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
+                    key={s.id}
+                    onClick={() => { onSelect(s.id); onClose(); }}
+                    className={`group flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm transition-colors ${
+                      s.id === activeId
+                        ? "bg-surface-2 text-foreground"
+                        : "text-text-secondary hover:bg-surface-2/50 hover:text-foreground"
+                    }`}
                   >
-                    <Trash2 size={13} />
+                    <span className="flex-1 truncate">{s.title}</span>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onDelete(s.id); }}
+                          className="shrink-0 rounded p-0.5 opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Delete chat</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Delete chat</p>
-                </TooltipContent>
-              </Tooltip>
-            </button>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
 
