@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import type { ChatSession, ChatMessage, ModelParams, MessageMetadata, ContextWindowChats } from "@/types/chat";
+import type { ChatSession, ChatMessage, ModelParams, MessageMetadata, ContextWindowChats, MessageReasoningDetail } from "@/types/chat";
 import { DEFAULT_PARAMS, DEFAULT_PRESETS, DEFAULT_CONTEXT_WINDOW_CHATS } from "@/types/chat";
 
 const createId = () => crypto.randomUUID();
@@ -126,12 +126,25 @@ export function useChatStore() {
   );
 
   const updateLastAssistantMessage = useCallback(
-    (content: string, isStreaming: boolean, metadata?: MessageMetadata) => {
+    (
+      content: string,
+      isStreaming: boolean,
+      metadata?: MessageMetadata,
+      reasoning?: string,
+      reasoningDetails?: MessageReasoningDetail[]
+    ) => {
       updateSession(activeSessionId, (s) => {
         const msgs = [...s.messages];
         const lastIdx = msgs.length - 1;
         if (lastIdx >= 0 && msgs[lastIdx].role === "assistant") {
-          msgs[lastIdx] = { ...msgs[lastIdx], content, isStreaming, ...(metadata ? { metadata } : {}) };
+          msgs[lastIdx] = {
+            ...msgs[lastIdx],
+            content,
+            isStreaming,
+            ...(metadata ? { metadata } : {}),
+            ...(reasoning !== undefined ? { reasoning } : {}),
+            ...(reasoningDetails !== undefined ? { reasoningDetails } : {}),
+          };
         }
         return { ...s, messages: msgs, updatedAt: Date.now() };
       });

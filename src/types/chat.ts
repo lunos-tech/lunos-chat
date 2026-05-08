@@ -27,10 +27,21 @@ export interface MessageMetadata {
   contextMessageCount?: number;
 }
 
+export interface MessageReasoningDetail {
+  type?: string;
+  summary?: string;
+  format?: string;
+  index?: number;
+  data?: string;
+  id?: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: MessageRole;
   content: string;
+  reasoning?: string;
+  reasoningDetails?: MessageReasoningDetail[];
   model?: string;
   timestamp: number;
   isStreaming?: boolean;

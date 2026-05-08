@@ -1,9 +1,18 @@
 import OpenAI from "openai";
 import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions";
 import type { ProviderConfig } from "@/components/playground/ProviderModal";
-import type { ModelParams, ChatMessage, ContextWindowChats, Attachment } from "@/types/chat";
+import type { ModelParams, ChatMessage, ContextWindowChats, Attachment, MessageReasoningDetail } from "@/types/chat";
 import type { ToolDefinition } from "@/components/playground/ToolsModal";
 import { sliceMessagesForContext } from "@/types/chat";
+
+type ReasoningDelta = {
+  reasoning_content?: string;
+  reasoning?: string;
+  reasoning_details?: unknown[];
+};
+
+type ExtraTool = { type: "web_search" };
+type RequestTool = ChatCompletionTool | ExtraTool;
 
 function createClient(provider: ProviderConfig): OpenAI {
   return new OpenAI({
@@ -117,7 +126,7 @@ function buildMessages(
           contentParts.push(attachmentToContentBlock(att));
         }
 
-        msgs.push({ role: "user", content: contentParts as any });
+        msgs.push({ role: "user", content: contentParts as ChatCompletionMessageParam["content"] });
       } else {
         msgs.push({ role: m.role, content: m.content });
       }
@@ -129,8 +138,16 @@ function buildMessages(
 
 export interface StreamCallbacks {
   onDelta: (text: string) => void;
-  onDone: (fullText: string) => void;
+  onReasoningDelta: (text: string) => void;
+  onDone: (result: { content: string; reasoning: string; reasoningDetails: MessageReasoningDetail[] }) => void;
   onError: (error: string) => void;
+}
+
+function getReasoningTextFromDetail(detail: MessageReasoningDetail): string {
+  if (detail.type === "reasoning.encrypted") return "";
+  if (typeof detail.summary === "string" && detail.summary.trim()) return detail.summary;
+  if (typeof detail.data === "string" && detail.data.trim()) return detail.data;
+  return "";
 }
 
 /**
@@ -195,7 +212,7 @@ export function streamChat(
   const openaiTools = supports("tools") ? buildTools(tools) : undefined;
 
   // Build combined tools array (function tools + web search)
-  let allTools: any[] | undefined;
+  let allTools: RequestTool[] | undefined;
   if (webSearch || openaiTools) {
     allTools = [];
     if (openaiTools) allTools.push(...openaiTools);
@@ -217,8 +234,8 @@ export function streamChat(
       });
 
       let accumulated = "";
-      let hasStartedReasoning = false;
-      let hasFinishedReasoning = false;
+      let accumulatedReasoning = "";
+      const reasoningDetails: MessageReasoningDetail[] = [];
 
       for await (const chunk of stream) {
         if (cancelled || signal.aborted) break;
@@ -227,28 +244,35 @@ export function streamChat(
         if (!delta) continue;
 
         // Handle reasoning content (used by some models like Deepseek R1 via compatible APIs)
-        const reasoning = (delta as any).reasoning_content;
+        const reasoningDelta = delta as typeof delta & ReasoningDelta;
+        const reasoning = reasoningDelta.reasoning_content ?? reasoningDelta.reasoning;
         if (reasoning) {
-          if (!hasStartedReasoning) {
-            hasStartedReasoning = true;
-            const header = "> 💭 **Thinking Process:**\n> ";
-            accumulated += header;
-            callbacks.onDelta(header);
-          }
-          // We must replace newlines with `\n> ` to keep the blockquote formatting valid as it streams.
-          const formattedReasoning = reasoning.replace(/\n/g, "\n> ");
-          accumulated += formattedReasoning;
-          callbacks.onDelta(formattedReasoning);
+          accumulatedReasoning += reasoning;
+          callbacks.onReasoningDelta(reasoning);
         }
 
-        // Handle standard text content
-        if (delta.content) {
-          if (hasStartedReasoning && !hasFinishedReasoning) {
-            hasFinishedReasoning = true;
-            const footer = "\n\n---\n\n";
-            accumulated += footer;
-            callbacks.onDelta(footer);
+        const deltaReasoningDetails = reasoningDelta.reasoning_details;
+        if (Array.isArray(deltaReasoningDetails)) {
+          for (const detail of deltaReasoningDetails) {
+            if (detail && typeof detail === "object") {
+              const parsedDetail = detail as MessageReasoningDetail;
+              if (parsedDetail.type === "reasoning.encrypted") {
+                continue;
+              }
+              reasoningDetails.push(parsedDetail);
+              if (!reasoning) {
+                const textFromDetail = getReasoningTextFromDetail(parsedDetail);
+                if (textFromDetail) {
+                  const withSpacing = accumulatedReasoning ? `\n${textFromDetail}` : textFromDetail;
+                  accumulatedReasoning += withSpacing;
+                  callbacks.onReasoningDelta(withSpacing);
+                }
+              }
+            }
           }
+        }
+
+        if (delta.content) {
           accumulated += delta.content;
           callbacks.onDelta(delta.content);
         }
@@ -270,12 +294,20 @@ export function streamChat(
       }
 
       if (!cancelled && !signal.aborted) {
-        callbacks.onDone(accumulated);
+        callbacks.onDone({
+          content: accumulated,
+          reasoning: accumulatedReasoning,
+          reasoningDetails,
+        });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (!cancelled && !signal.aborted) {
         const message =
-          err?.message || err?.error?.message || "An error occurred while streaming the response.";
+          err instanceof Error
+            ? err.message
+            : typeof err === "object" && err !== null && "error" in err
+              ? String((err as { error?: { message?: string } }).error?.message ?? "An error occurred while streaming the response.")
+              : "An error occurred while streaming the response.";
         callbacks.onError(message);
       }
     }

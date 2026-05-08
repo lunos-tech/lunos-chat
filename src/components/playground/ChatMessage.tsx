@@ -1,6 +1,6 @@
 import { memo, useState, useRef, useEffect } from "react";
 import { useTheme } from "next-themes";
-import { Copy, Check, RotateCcw, Pencil, Trash2, ChevronDown, Info, FileText, Film, Music } from "lucide-react";
+import { Copy, Check, RotateCcw, Pencil, Trash2, ChevronDown, Info, FileText, Film, Music, Brain } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
@@ -182,8 +182,10 @@ export default memo(function ChatMessage({ message, onRegenerate, onEdit, onDele
   const { resolvedTheme } = useTheme();
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState("");
+  const [showReasoning, setShowReasoning] = useState(false);
   const isUser = message.role === "user";
   const codeStyle = resolvedTheme === "light" ? cleanOneLight : cleanOneDark;
+  const hasReasoning = !!message.reasoning?.trim();
 
   const handleEditSubmit = () => {
     if (!editContent.trim() || !onEdit) return;
@@ -238,6 +240,30 @@ export default memo(function ChatMessage({ message, onRegenerate, onEdit, onDele
           </div>
         ) : (
           <div className="text-sm leading-relaxed text-foreground">
+            {!isUser && hasReasoning && (
+              <div className="mb-3 rounded-md border border-border/80 bg-surface-2/40">
+                <button
+                  onClick={() => setShowReasoning((prev) => !prev)}
+                  className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left"
+                >
+                  <span className="flex items-center gap-2 text-xs font-medium text-text-secondary">
+                    <Brain size={13} className={message.isStreaming ? "animate-pulse" : ""} />
+                    Reasoning
+                  </span>
+                  <span className="flex items-center gap-1 text-[11px] text-text-tertiary">
+                    {message.isStreaming ? "Thinking..." : "Done"}
+                    <ChevronDown size={12} className={`transition-transform ${showReasoning ? "rotate-180" : ""}`} />
+                  </span>
+                </button>
+                {showReasoning && (
+                  <div className="border-t border-border/70 px-3 py-2">
+                    <pre className="whitespace-pre-wrap break-all font-sans text-xs leading-relaxed text-text-secondary">
+                      {message.reasoning || ""}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            )}
             {message.isStreaming && !message.content ? (
               <TypingIndicator />
             ) : (

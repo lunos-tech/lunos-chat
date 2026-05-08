@@ -131,6 +131,7 @@ export default function PlaygroundLayout() {
       ];
 
       let accumulated = "";
+      let accumulatedReasoning = "";
 
       const cleanup = streamChat(
         currentProvider,
@@ -144,17 +145,27 @@ export default function PlaygroundLayout() {
         {
           onDelta: (delta) => {
             accumulated += delta;
-            store.updateLastAssistantMessage(accumulated, true);
+            store.updateLastAssistantMessage(accumulated, true, undefined, accumulatedReasoning);
           },
-          onDone: (fullText) => {
+          onReasoningDelta: (delta) => {
+            accumulatedReasoning += delta;
+            store.updateLastAssistantMessage(accumulated, true, undefined, accumulatedReasoning);
+          },
+          onDone: (result) => {
             const duration = (Date.now() - startTime) / 1000;
-            const tokenCount = Math.round(fullText.length / 4);
+            const tokenCount = Math.round((result.content.length + result.reasoning.length) / 4);
             const tps = duration > 0 ? tokenCount / duration : 0;
-            store.updateLastAssistantMessage(fullText, false, {
-              tokenCount,
-              tps,
-              duration,
-            });
+            store.updateLastAssistantMessage(
+              result.content,
+              false,
+              {
+                tokenCount,
+                tps,
+                duration,
+              },
+              result.reasoning,
+              result.reasoningDetails
+            );
             setIsStreaming(false);
             abortRef.current = null;
             cleanupRef.current = null;
