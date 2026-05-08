@@ -28,6 +28,7 @@ interface Props {
   model: string;
   systemPrompt: string;
   params: { temperature: number; topP: number; maxTokens: number };
+  baseUrl?: string | null;
 }
 
 const LANGUAGES = [
@@ -45,13 +46,16 @@ function generateSnippet(
   lang: LangId,
   model: string,
   systemPrompt: string,
-  params: { temperature: number; topP: number; maxTokens: number }
+  params: { temperature: number; topP: number; maxTokens: number },
+  baseUrl?: string | null
 ): string {
   const escaped = (s: string) => s.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n");
+  const normalizedBase = (baseUrl && baseUrl.trim() ? baseUrl.trim() : "https://api.lunos.tech/v1").replace(/\/+$/, "");
+  const endpoint = normalizedBase.endsWith("/chat/completions") ? normalizedBase : `${normalizedBase}/chat/completions`;
 
   switch (lang) {
     case "curl":
-      return `curl -X POST https://api.lunos.ai/v1/chat/completions \\
+      return `curl -X POST ${endpoint} \\
   -H "Authorization: Bearer $LUNOS_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -69,7 +73,7 @@ function generateSnippet(
       return `import requests
 
 response = requests.post(
-    "https://api.lunos.ai/v1/chat/completions",
+    "${endpoint}",
     headers={
         "Authorization": f"Bearer {LUNOS_API_KEY}",
         "Content-Type": "application/json",
@@ -89,7 +93,7 @@ response = requests.post(
 print(response.json())`;
 
     case "javascript":
-      return `const response = await fetch("https://api.lunos.ai/v1/chat/completions", {
+      return `const response = await fetch("${endpoint}", {
   method: "POST",
   headers: {
     "Authorization": \`Bearer \${LUNOS_API_KEY}\`,
@@ -115,7 +119,7 @@ console.log(data);`;
   choices: { message: { role: string; content: string } }[];
 }
 
-const response = await fetch("https://api.lunos.ai/v1/chat/completions", {
+const response = await fetch("${endpoint}", {
   method: "POST",
   headers: {
     "Authorization": \`Bearer \${LUNOS_API_KEY}\`,
@@ -160,7 +164,7 @@ func main() {
 	})
 
 	req, _ := http.NewRequest("POST",
-		"https://api.lunos.ai/v1/chat/completions",
+		"${endpoint}",
 		bytes.NewBuffer(body))
 	req.Header.Set("Authorization", "Bearer "+os.Getenv("LUNOS_API_KEY"))
 	req.Header.Set("Content-Type", "application/json")
@@ -191,7 +195,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     let res = client
-        .post("https://api.lunos.ai/v1/chat/completions")
+        .post("${endpoint}")
         .header(AUTHORIZATION, format!("Bearer {}", api_key))
         .header(CONTENT_TYPE, "application/json")
         .json(&body)
@@ -204,7 +208,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   }
 }
 
-export default function CodeSnippetsModal({ open, onClose, model, systemPrompt, params }: Props) {
+export default function CodeSnippetsModal({ open, onClose, model, systemPrompt, params, baseUrl }: Props) {
   const { resolvedTheme } = useTheme();
   const [activeLang, setActiveLang] = useState<LangId>("curl");
   const [copied, setCopied] = useState(false);
@@ -213,7 +217,7 @@ export default function CodeSnippetsModal({ open, onClose, model, systemPrompt, 
 
   const prismStyle = resolvedTheme === "light" ? cleanOneLight : cleanOneDark;
 
-  const code = generateSnippet(activeLang, model, systemPrompt, params);
+  const code = generateSnippet(activeLang, model, systemPrompt, params, baseUrl);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(code);

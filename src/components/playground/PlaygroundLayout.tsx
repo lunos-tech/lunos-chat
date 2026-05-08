@@ -9,7 +9,6 @@ import ControlPanel from "./ControlPanel";
 import TopBar from "./TopBar";
 import ProviderModal, { isProviderConfigured, getStoredProvider, type ProviderConfig } from "./ProviderModal";
 import ModelSelectorModal, { getModelSupportedParams } from "./ModelSelectorModal";
-import PromptBrowserModal from "./PromptBrowserModal";
 import WelcomeModal from "./WelcomeModal";
 import { type ToolDefinition } from "./ToolsModal";
 import { streamChat, summarizeTitle } from "@/lib/chatService";
@@ -21,7 +20,6 @@ export default function PlaygroundLayout() {
   const cleanupRef = useRef<(() => void) | null>(null);
   const [providerModalOpen, setProviderModalOpen] = useState(false);
   const [modelModalOpen, setModelModalOpen] = useState(false);
-  const [promptBrowserOpen, setPromptBrowserOpen] = useState(false);
   const [welcomeOpen, setWelcomeOpen] = useState(false);
   const [provider, setProvider] = useState<ProviderConfig | null>(getStoredProvider);
   const [tools, setTools] = useState<ToolDefinition[]>([]);
@@ -277,7 +275,6 @@ export default function PlaygroundLayout() {
         onClose={() => store.setControlPanelOpen(false)}
         provider={provider}
         onOpenProviderModal={() => setProviderModalOpen(true)}
-        onOpenPromptBrowser={() => setPromptBrowserOpen(true)}
         tools={tools}
         onToolsChange={setTools}
         supportedParams={supportedParams}
@@ -294,15 +291,6 @@ export default function PlaygroundLayout() {
         onClose={() => setModelModalOpen(false)}
         currentModel={store.activeSession.model}
         onSelect={store.setModel}
-      />
-
-      <PromptBrowserModal
-        open={promptBrowserOpen}
-        onClose={() => setPromptBrowserOpen(false)}
-        onSelect={(prompt) => {
-          store.setSystemPrompt(prompt);
-          store.setControlPanelOpen(true);
-        }}
       />
 
       <WelcomeModal

@@ -17,7 +17,6 @@ interface Props {
   onClose: () => void;
   provider?: ProviderConfig | null;
   onOpenProviderModal?: () => void;
-  onOpenPromptBrowser?: () => void;
   tools: ToolDefinition[];
   onToolsChange: (tools: ToolDefinition[]) => void;
   supportedParams?: string[] | null;
@@ -57,7 +56,7 @@ function Slider({
   );
 }
 
-export default function ControlPanel({ model, onModelChange, systemPrompt, onSystemPromptChange, params, onParamsChange, open, onClose, provider, onOpenProviderModal, onOpenPromptBrowser, tools, onToolsChange, supportedParams }: Props) {
+export default function ControlPanel({ model, onModelChange, systemPrompt, onSystemPromptChange, params, onParamsChange, open, onClose, provider, onOpenProviderModal, tools, onToolsChange, supportedParams }: Props) {
   const [snippetsOpen, setSnippetsOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [paramsOpen, setParamsOpen] = useState(true);
@@ -118,10 +117,6 @@ export default function ControlPanel({ model, onModelChange, systemPrompt, onSys
               <select
                 value={DEFAULT_PRESETS.find((p) => p.prompt === systemPrompt)?.id ?? "custom"}
                 onChange={(e) => {
-                  if (e.target.value === "open_promptcreek") {
-                    if (onOpenPromptBrowser) onOpenPromptBrowser();
-                    return;
-                  }
                   const preset = DEFAULT_PRESETS.find((p) => p.id === e.target.value);
                   if (preset) onSystemPromptChange(preset.prompt);
                 }}
@@ -132,7 +127,6 @@ export default function ControlPanel({ model, onModelChange, systemPrompt, onSys
                     {p.icon} {p.name}
                   </option>
                 ))}
-                <option value="open_promptcreek">🌐 Browse PromptCreek...</option>
                 {!DEFAULT_PRESETS.some((p) => p.prompt === systemPrompt) && (
                   <option value="custom" disabled>Custom</option>
                 )}
@@ -227,6 +221,7 @@ export default function ControlPanel({ model, onModelChange, systemPrompt, onSys
         model={model}
         systemPrompt={systemPrompt}
         params={params}
+        baseUrl={provider?.baseUrl}
       />
 
       <ToolsModal

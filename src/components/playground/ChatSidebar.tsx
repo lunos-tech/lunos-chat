@@ -171,7 +171,7 @@ export default function ChatSidebar({ sessions, activeId, onSelect, onNew, onDel
             <div className="flex items-center gap-1">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <a href="https://lunos.dev" target="_blank" rel="noopener noreferrer" className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground">
+                  <a href="https://lunos.tech" target="_blank" rel="noopener noreferrer" className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground">
                     <Globe size={14} />
                   </a>
                 </TooltipTrigger>
