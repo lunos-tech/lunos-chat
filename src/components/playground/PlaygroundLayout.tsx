@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState, useEffect } from "react";
-import type { ChatSession, ChatMessage, ModelParams, MessageMetadata, ContextWindowChats, Attachment } from "@/types/chat";
+import type { ChatSession, ChatMessage, ModelParams, MessageMetadata, ContextWindowChats, Attachment, GeneratedImage, ImageConfig } from "@/types/chat";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useChatStore } from "@/store/chatStore";
@@ -8,7 +8,7 @@ import ChatArea from "./ChatArea";
 import ControlPanel from "./ControlPanel";
 import TopBar from "./TopBar";
 import ProviderModal, { isProviderConfigured, getStoredProvider, type ProviderConfig } from "./ProviderModal";
-import ModelSelectorModal, { getModelSupportedParams } from "./ModelSelectorModal";
+import ModelSelectorModal, { getModelSupportedParams, getModelOutputModalities } from "./ModelSelectorModal";
 import WelcomeModal from "./WelcomeModal";
 import { type ToolDefinition } from "./ToolsModal";
 import { streamChat, summarizeTitle } from "@/lib/chatService";
@@ -23,6 +23,7 @@ export default function PlaygroundLayout() {
   const [welcomeOpen, setWelcomeOpen] = useState(false);
   const [provider, setProvider] = useState<ProviderConfig | null>(getStoredProvider);
   const [tools, setTools] = useState<ToolDefinition[]>([]);
+  const [imageConfig, setImageConfig] = useState<ImageConfig>({});
   const navigate = useNavigate();
   const { id } = useParams();
 
@@ -52,6 +53,8 @@ export default function PlaygroundLayout() {
 
   // Look up supported parameters for the current model
   const supportedParams = getModelSupportedParams(store.activeSession.model);
+  const outputModalities = getModelOutputModalities(store.activeSession.model);
+  const supportsImageOutput = Array.isArray(outputModalities) && outputModalities.includes("image");
 
   // Show welcome modal or provider modal on first load
   useEffect(() => {
@@ -130,6 +133,7 @@ export default function PlaygroundLayout() {
 
       let accumulated = "";
       let accumulatedReasoning = "";
+      const accumulatedImages: GeneratedImage[] = [];
 
       const cleanup = streamChat(
         currentProvider,
@@ -143,11 +147,22 @@ export default function PlaygroundLayout() {
         {
           onDelta: (delta) => {
             accumulated += delta;
-            store.updateLastAssistantMessage(accumulated, true, undefined, accumulatedReasoning);
+            store.updateLastAssistantMessage(accumulated, true, undefined, accumulatedReasoning, undefined, accumulatedImages);
           },
           onReasoningDelta: (delta) => {
             accumulatedReasoning += delta;
-            store.updateLastAssistantMessage(accumulated, true, undefined, accumulatedReasoning);
+            store.updateLastAssistantMessage(accumulated, true, undefined, accumulatedReasoning, undefined, accumulatedImages);
+          },
+          onImage: (image) => {
+            accumulatedImages.push(image);
+            store.updateLastAssistantMessage(
+              accumulated,
+              true,
+              undefined,
+              accumulatedReasoning,
+              undefined,
+              [...accumulatedImages],
+            );
           },
           onDone: (result) => {
             const duration = (Date.now() - startTime) / 1000;
@@ -162,7 +177,8 @@ export default function PlaygroundLayout() {
                 duration,
               },
               result.reasoning,
-              result.reasoningDetails
+              result.reasoningDetails,
+              result.images,
             );
             setIsStreaming(false);
             abortRef.current = null;
@@ -181,11 +197,13 @@ export default function PlaygroundLayout() {
         },
         controller.signal,
         supportedParams,
+        outputModalities,
+        supportsImageOutput ? imageConfig : null,
       );
 
       cleanupRef.current = cleanup;
     },
-    [store, tools]
+    [store, tools, supportedParams, outputModalities, supportsImageOutput, imageConfig]
   );
 
   const handleSend = useCallback(
@@ -278,6 +296,9 @@ export default function PlaygroundLayout() {
         tools={tools}
         onToolsChange={setTools}
         supportedParams={supportedParams}
+        supportsImageOutput={supportsImageOutput}
+        imageConfig={imageConfig}
+        onImageConfigChange={setImageConfig}
       />
 
       <ProviderModal

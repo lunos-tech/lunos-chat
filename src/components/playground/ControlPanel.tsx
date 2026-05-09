@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { X, Bookmark, ChevronRight, ChevronDown, Code2, Wrench, Globe } from "lucide-react";
-import type { ModelParams } from "@/types/chat";
+import { X, Bookmark, ChevronRight, ChevronDown, Code2, Wrench, Globe, ImageIcon } from "lucide-react";
+import type { ModelParams, ImageConfig } from "@/types/chat";
 import { DEFAULT_PRESETS } from "@/types/chat";
 import CodeSnippetsModal from "./CodeSnippetsModal";
 import ToolsModal, { type ToolDefinition } from "./ToolsModal";
@@ -20,7 +20,13 @@ interface Props {
   tools: ToolDefinition[];
   onToolsChange: (tools: ToolDefinition[]) => void;
   supportedParams?: string[] | null;
+  supportsImageOutput?: boolean;
+  imageConfig?: ImageConfig;
+  onImageConfigChange?: (cfg: ImageConfig) => void;
 }
+
+const ASPECT_RATIO_OPTIONS = ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"] as const;
+const IMAGE_SIZE_OPTIONS = ["1K", "2K", "4K"] as const;
 
 function Slider({
   label,
@@ -56,7 +62,7 @@ function Slider({
   );
 }
 
-export default function ControlPanel({ model, onModelChange, systemPrompt, onSystemPromptChange, params, onParamsChange, open, onClose, provider, onOpenProviderModal, tools, onToolsChange, supportedParams }: Props) {
+export default function ControlPanel({ model, onModelChange, systemPrompt, onSystemPromptChange, params, onParamsChange, open, onClose, provider, onOpenProviderModal, tools, onToolsChange, supportedParams, supportsImageOutput, imageConfig, onImageConfigChange }: Props) {
   const [snippetsOpen, setSnippetsOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [paramsOpen, setParamsOpen] = useState(true);
@@ -184,6 +190,78 @@ export default function ControlPanel({ model, onModelChange, systemPrompt, onSys
               )}
             </div>
           </div>
+
+          {/* Image Output (only when model supports image generation) */}
+          {supportsImageOutput && (
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-xs font-semibold tracking-wider text-text-tertiary">
+                <ImageIcon size={12} className="text-primary" />
+                IMAGE OUTPUT
+                <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-medium text-primary">ACTIVE</span>
+              </label>
+              <p className="text-[11px] leading-relaxed text-text-tertiary">
+                This model can generate images. The next response may include one or more images.
+              </p>
+
+              <div className="space-y-3 rounded-md border border-border bg-surface-2/60 p-3">
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium text-text-secondary">Aspect ratio</label>
+                    <span className="font-mono text-[10px] text-text-tertiary">{imageConfig?.aspect_ratio ?? "default"}</span>
+                  </div>
+                  <div className="relative">
+                    <select
+                      value={imageConfig?.aspect_ratio ?? ""}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        onImageConfigChange?.({
+                          ...(imageConfig ?? {}),
+                          aspect_ratio: v || undefined,
+                        });
+                      }}
+                      className="w-full appearance-none rounded-md border border-border bg-background px-3 py-2 pr-8 text-xs text-foreground focus:border-primary/40 focus:outline-none"
+                    >
+                      <option value="">Default</option>
+                      {ASPECT_RATIO_OPTIONS.map((r) => (
+                        <option key={r} value={r}>
+                          {r}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown size={12} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium text-text-secondary">Image size</label>
+                    <span className="font-mono text-[10px] text-text-tertiary">{imageConfig?.image_size ?? "default"}</span>
+                  </div>
+                  <div className="relative">
+                    <select
+                      value={imageConfig?.image_size ?? ""}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        onImageConfigChange?.({
+                          ...(imageConfig ?? {}),
+                          image_size: v || undefined,
+                        });
+                      }}
+                      className="w-full appearance-none rounded-md border border-border bg-background px-3 py-2 pr-8 text-xs text-foreground focus:border-primary/40 focus:outline-none"
+                    >
+                      <option value="">Default</option>
+                      {IMAGE_SIZE_OPTIONS.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown size={12} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Tools / Function Calling */}
           {supports("tools") && (

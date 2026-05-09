@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import type { ChatSession, ChatMessage, ModelParams, MessageMetadata, ContextWindowChats, MessageReasoningDetail } from "@/types/chat";
+import type { ChatSession, ChatMessage, ModelParams, MessageMetadata, ContextWindowChats, MessageReasoningDetail, GeneratedImage } from "@/types/chat";
 import { DEFAULT_PARAMS, DEFAULT_PRESETS, DEFAULT_CONTEXT_WINDOW_CHATS } from "@/types/chat";
 
 const createId = () => crypto.randomUUID();
@@ -131,7 +131,8 @@ export function useChatStore() {
       isStreaming: boolean,
       metadata?: MessageMetadata,
       reasoning?: string,
-      reasoningDetails?: MessageReasoningDetail[]
+      reasoningDetails?: MessageReasoningDetail[],
+      generatedImages?: GeneratedImage[]
     ) => {
       updateSession(activeSessionId, (s) => {
         const msgs = [...s.messages];
@@ -144,6 +145,7 @@ export function useChatStore() {
             ...(metadata ? { metadata } : {}),
             ...(reasoning !== undefined ? { reasoning } : {}),
             ...(reasoningDetails !== undefined ? { reasoningDetails } : {}),
+            ...(generatedImages !== undefined ? { generatedImages } : {}),
           };
         }
         return { ...s, messages: msgs, updatedAt: Date.now() };

@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions";
 import type { ProviderConfig } from "@/components/playground/ProviderModal";
-import type { ModelParams, ChatMessage, ContextWindowChats, Attachment, MessageReasoningDetail } from "@/types/chat";
+import type { ModelParams, ChatMessage, ContextWindowChats, Attachment, MessageReasoningDetail, GeneratedImage, ImageConfig } from "@/types/chat";
 import type { ToolDefinition } from "@/components/playground/ToolsModal";
 import { sliceMessagesForContext } from "@/types/chat";
 
@@ -9,6 +9,12 @@ type ReasoningDelta = {
   reasoning_content?: string;
   reasoning?: string;
   reasoning_details?: unknown[];
+};
+
+/** Image payload shape returned under choices[].delta.images or choices[].message.images */
+type ApiImagePart = {
+  type?: string;
+  image_url?: { url?: string };
 };
 
 type ExtraTool = { type: "web_search" };
@@ -139,8 +145,39 @@ function buildMessages(
 export interface StreamCallbacks {
   onDelta: (text: string) => void;
   onReasoningDelta: (text: string) => void;
-  onDone: (result: { content: string; reasoning: string; reasoningDetails: MessageReasoningDetail[] }) => void;
+  /** Called when the stream emits a generated image (via delta.images or final message.images). */
+  onImage: (image: GeneratedImage) => void;
+  onDone: (result: { content: string; reasoning: string; reasoningDetails: MessageReasoningDetail[]; images: GeneratedImage[] }) => void;
   onError: (error: string) => void;
+}
+
+// ─── Image parsing helpers ────────────────────────────────────────────
+
+function mimeFromDataUrl(url: string): string | undefined {
+  const match = /^data:([^;,]+)/i.exec(url);
+  return match ? match[1] : undefined;
+}
+
+function createGeneratedImage(url: string): GeneratedImage {
+  return {
+    id: crypto.randomUUID(),
+    url,
+    mime: mimeFromDataUrl(url),
+  };
+}
+
+/** Normalize an array of image parts from delta.images / message.images into GeneratedImage[]. */
+function parseImageParts(parts: unknown): GeneratedImage[] {
+  if (!Array.isArray(parts)) return [];
+  const out: GeneratedImage[] = [];
+  for (const p of parts) {
+    if (!p || typeof p !== "object") continue;
+    const url = (p as ApiImagePart).image_url?.url;
+    if (typeof url === "string" && url.length > 0) {
+      out.push(createGeneratedImage(url));
+    }
+  }
+  return out;
 }
 
 function getReasoningTextFromDetail(detail: MessageReasoningDetail): string {
@@ -201,6 +238,8 @@ export function streamChat(
   callbacks: StreamCallbacks,
   signal: AbortSignal,
   supportedParams?: string[] | null,
+  outputModalities?: string[] | null,
+  imageConfig?: ImageConfig | null,
 ): () => void {
   const client = createClient(provider);
   const messages = buildMessages(systemPrompt, chatMessages, maxContext);
@@ -219,10 +258,23 @@ export function streamChat(
     if (webSearch) allTools.push({ type: "web_search" });
   }
 
+  // Decide which modalities to request. Per Lunos docs, image-capable models
+  // should receive modalities: ["image", "text"] (or ["image"] for image-only).
+  const wantsImage = Array.isArray(outputModalities) && outputModalities.includes("image");
+  const wantsText = !Array.isArray(outputModalities) || outputModalities.includes("text");
+  const modalities = wantsImage ? (wantsText ? ["image", "text"] : ["image"]) : undefined;
+
   let cancelled = false;
 
   const run = async () => {
     try {
+      // OpenAI SDK types don't include `modalities` / `image_config`; pass as extras.
+      const extraBody: Record<string, unknown> = {};
+      if (modalities) extraBody.modalities = modalities;
+      if (imageConfig && (imageConfig.aspect_ratio || imageConfig.image_size)) {
+        extraBody.image_config = { ...imageConfig };
+      }
+
       const stream = await client.chat.completions.create({
         model,
         messages,
@@ -231,16 +283,33 @@ export function streamChat(
         ...(supports("max_tokens") ? { max_tokens: params.maxTokens } : {}),
         stream: true,
         ...(allTools ? { tools: allTools } : {}),
+        ...(extraBody as Record<string, never>),
       });
 
       let accumulated = "";
       let accumulatedReasoning = "";
       const reasoningDetails: MessageReasoningDetail[] = [];
+      const collectedImages: GeneratedImage[] = [];
+      // Dedup image URLs so repeated deltas (or the final message echoing the same images) aren't added twice.
+      const seenImageUrls = new Set<string>();
+
+      const emitImages = (images: GeneratedImage[]) => {
+        for (const img of images) {
+          if (seenImageUrls.has(img.url)) continue;
+          seenImageUrls.add(img.url);
+          collectedImages.push(img);
+          callbacks.onImage(img);
+        }
+      };
 
       for await (const chunk of stream) {
         if (cancelled || signal.aborted) break;
 
-        const delta = chunk.choices?.[0]?.delta;
+        const choice = chunk.choices?.[0] as typeof chunk.choices[0] & {
+          delta?: { images?: unknown };
+          message?: { images?: unknown };
+        } | undefined;
+        const delta = choice?.delta;
         if (!delta) continue;
 
         // Handle reasoning content (used by some models like Deepseek R1 via compatible APIs)
@@ -277,6 +346,15 @@ export function streamChat(
           callbacks.onDelta(delta.content);
         }
 
+        // Handle image output per dashboard docs:
+        // - streaming: choices[].delta.images
+        // - final: choices[].message.images (some providers echo it in the final chunk)
+        const deltaImages = (delta as { images?: unknown }).images;
+        if (deltaImages) emitImages(parseImageParts(deltaImages));
+
+        const messageImages = choice?.message?.images;
+        if (messageImages) emitImages(parseImageParts(messageImages));
+
         // Handle tool calls — render them as formatted text
         if (delta.tool_calls) {
           for (const tc of delta.tool_calls) {
@@ -298,6 +376,7 @@ export function streamChat(
           content: accumulated,
           reasoning: accumulatedReasoning,
           reasoningDetails,
+          images: collectedImages,
         });
       }
     } catch (err: unknown) {

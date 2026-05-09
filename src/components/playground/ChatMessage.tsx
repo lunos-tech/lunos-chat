@@ -1,11 +1,11 @@
 import { memo, useState, useRef, useEffect } from "react";
 import { useTheme } from "next-themes";
-import { Copy, Check, RotateCcw, Pencil, Trash2, ChevronDown, Info, FileText, Film, Music, Brain } from "lucide-react";
+import { Copy, Check, RotateCcw, Pencil, Trash2, ChevronDown, Info, FileText, Film, Music, Brain, Download, ExternalLink, ImageIcon } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark, oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
-import type { ChatMessage as Msg, Attachment } from "@/types/chat";
+import type { ChatMessage as Msg, Attachment, GeneratedImage } from "@/types/chat";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Remove background from all token styles
@@ -138,8 +138,85 @@ function MetadataDropdown({ message }: { message: Msg }) {
   );
 }
 
-function AttachmentDisplay({ attachment }: { attachment: Attachment }) {
-  if (attachment.type === "image") {
+function GeneratedImageItem({ image, index }: { image: GeneratedImage; index: number }) {
+  const [loaded, setLoaded] = useState(false);
+  const isRemote = /^https?:\/\//i.test(image.url);
+  const isDataUrl = image.url.startsWith("data:");
+  // Only render safe schemes. Anything else (javascript:, vbscript:, ...) is dropped.
+  if (!isRemote && !isDataUrl) return null;
+
+  const ext = (() => {
+    if (!image.mime) return "png";
+    const sub = image.mime.split("/")[1] ?? "png";
+    return sub.split(";")[0];
+  })();
+  const fileName = `generated-${Date.now()}-${index + 1}.${ext}`;
+
+  return (
+    <div className="group/img relative inline-block overflow-hidden rounded-md border border-border bg-surface-2">
+      {!loaded && (
+        <div className="flex h-48 w-48 items-center justify-center">
+          <ImageIcon size={20} className="animate-pulse text-text-tertiary" />
+        </div>
+      )}
+      <img
+        src={image.url}
+        alt={`Generated image ${index + 1}`}
+        onLoad={() => setLoaded(true)}
+        className={`max-h-96 max-w-full rounded-md object-contain transition-opacity ${
+          loaded ? "opacity-100" : "absolute inset-0 opacity-0"
+        }`}
+      />
+      {loaded && (
+        <div className="absolute right-1.5 top-1.5 flex items-center gap-1 opacity-0 transition-opacity group-hover/img:opacity-100">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <a
+                href={image.url}
+                download={fileName}
+                className="rounded bg-background/80 p-1.5 text-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-background"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Download size={13} />
+              </a>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Download</p>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <a
+                href={image.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded bg-background/80 p-1.5 text-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-background"
+              >
+                <ExternalLink size={13} />
+              </a>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Open in new tab</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GeneratedImageGallery({ images }: { images: GeneratedImage[] }) {
+  if (!images || images.length === 0) return null;
+  return (
+    <div className="mb-3 flex flex-wrap gap-2">
+      {images.map((img, idx) => (
+        <GeneratedImageItem key={img.id} image={img} index={idx} />
+      ))}
+    </div>
+  );
+}
+
+function AttachmentDisplay({ attachment }: { attachment: Attachment }) {  if (attachment.type === "image") {
     return (
       <a href={attachment.dataUrl} target="_blank" rel="noopener noreferrer" className="block">
         <img
@@ -264,12 +341,33 @@ export default memo(function ChatMessage({ message, onRegenerate, onEdit, onDele
                 )}
               </div>
             )}
+            {!isUser && message.generatedImages && message.generatedImages.length > 0 && (
+              <GeneratedImageGallery images={message.generatedImages} />
+            )}
             {message.isStreaming && !message.content ? (
-              <TypingIndicator />
+              // Only show the typing indicator when we also have no images yet
+              (!message.generatedImages || message.generatedImages.length === 0) ? (
+                <TypingIndicator />
+              ) : null
             ) : (
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
+                  a({ href, children, ...props }) {
+                    const safeHref =
+                      href && /^https?:\/\//i.test(href) ? href : undefined;
+                    return (
+                      <a
+                        href={safeHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary underline"
+                        {...props}
+                      >
+                        {children}
+                      </a>
+                    );
+                  },
                   code({ className, children, ...props }) {
                     const match = /language-(\w+)/.exec(className || "");
                     const codeStr = String(children).replace(/\n$/, "");

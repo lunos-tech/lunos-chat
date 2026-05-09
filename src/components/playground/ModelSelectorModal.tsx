@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
-import { X, Check, Search, Loader2, RefreshCw, AlertCircle, Cpu } from "lucide-react";
+import { X, Check, Search, Loader2, RefreshCw, AlertCircle, Cpu, ImageIcon } from "lucide-react";
 import { getStoredProvider } from "./ProviderModal";
 
 /** Standard /v1/models response shape */
@@ -9,6 +9,10 @@ interface APIModel {
   created?: number;
   owned_by?: string;
   supportedParameters?: string[];
+  /** Modalities the model can produce. Lunos-style: ["text"], ["image", "text"], ["image"], etc. */
+  outputModalities?: string[];
+  /** Modalities the model accepts as input. */
+  inputModalities?: string[];
 }
 
 // ─── Public helper: look up supportedParameters for a model ───────────
@@ -23,6 +27,26 @@ export function getModelSupportedParams(modelId: string): string[] | null {
   } catch {
     return null;
   }
+}
+
+// ─── Public helper: look up outputModalities for a model ──────────────
+
+export function getModelOutputModalities(modelId: string): string[] | null {
+  try {
+    const raw = localStorage.getItem(MODELS_CACHE_KEY);
+    if (!raw) return null;
+    const { models } = JSON.parse(raw) as { models: APIModel[] };
+    const model = models.find((m) => m.id === modelId);
+    return model?.outputModalities ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Returns true if a model supports image output via chat completions. */
+export function modelSupportsImageOutput(modelId: string): boolean {
+  const mods = getModelOutputModalities(modelId);
+  return Array.isArray(mods) && mods.includes("image");
 }
 
 interface Props {
@@ -353,6 +377,15 @@ export default function ModelSelectorModal({ open, onClose, currentModel, onSele
                       {m.owned_by && (
                         <span className="shrink-0 rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-text-tertiary">
                           {m.owned_by}
+                        </span>
+                      )}
+                      {Array.isArray(m.outputModalities) && m.outputModalities.includes("image") && (
+                        <span
+                          className="shrink-0 inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary"
+                          title="Supports image output"
+                        >
+                          <ImageIcon size={10} />
+                          image
                         </span>
                       )}
                       {isActive && <Check size={14} className="ml-auto shrink-0 text-primary" />}
