@@ -43,6 +43,34 @@ export function getModelOutputModalities(modelId: string): string[] | null {
   }
 }
 
+export function getModelInputModalities(modelId: string): string[] | null {
+  try {
+    const raw = localStorage.getItem(MODELS_CACHE_KEY);
+    if (!raw) return null;
+    const { models } = JSON.parse(raw) as { models: APIModel[] };
+    const model = models.find((m) => m.id === modelId);
+    return model?.inputModalities ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function hasModality(modalities: string[] | null, target: string): boolean {
+  if (!Array.isArray(modalities)) return true;
+  const normalized = modalities.map((m) => m.toLowerCase());
+  return normalized.includes(target);
+}
+
+export function modelSupportsImageInput(modelId: string): boolean {
+  const mods = getModelInputModalities(modelId);
+  return hasModality(mods, "image");
+}
+
+export function modelSupportsAudioInput(modelId: string): boolean {
+  const mods = getModelInputModalities(modelId);
+  return hasModality(mods, "audio") || hasModality(mods, "input_audio");
+}
+
 /** Returns true if a model supports image output via chat completions. */
 export function modelSupportsImageOutput(modelId: string): boolean {
   const mods = getModelOutputModalities(modelId);

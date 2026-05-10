@@ -13,6 +13,8 @@ interface Props {
   onEditMessage?: (id: string, content: string) => void;
   maxContextChats: ContextWindowChats;
   onMaxContextChatsChange: (v: ContextWindowChats) => void;
+  supportsImageInput: boolean;
+  supportsAudioInput: boolean;
 }
 
 function EmptyState({ model }: { model: string }) {
@@ -43,6 +45,8 @@ export default function ChatArea({
   onEditMessage,
   maxContextChats,
   onMaxContextChatsChange,
+  supportsImageInput,
+  supportsAudioInput,
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -94,6 +98,8 @@ export default function ChatArea({
         isStreaming={isStreaming}
         maxContextChats={maxContextChats}
         onMaxContextChatsChange={onMaxContextChatsChange}
+        supportsImageInput={supportsImageInput}
+        supportsAudioInput={supportsAudioInput}
       />
     </div>
   );

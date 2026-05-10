@@ -25,6 +25,8 @@ interface Props {
   disabled?: boolean;
   maxContextChats: ContextWindowChats;
   onMaxContextChatsChange: (v: ContextWindowChats) => void;
+  supportsImageInput: boolean;
+  supportsAudioInput: boolean;
 }
 
 // ─── Accept maps ────────────────────────────────────────────────────
@@ -94,11 +96,13 @@ function IconButton({
   label,
   onClick,
   active,
+  disabled,
 }: {
   icon: typeof Paperclip;
   label: string;
   onClick?: () => void;
   active?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <Tooltip>
@@ -106,10 +110,13 @@ function IconButton({
         <button
           type="button"
           onClick={onClick}
+          disabled={disabled}
           className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors ${
             active
               ? "bg-primary/15 text-primary"
-              : "text-text-tertiary hover:bg-surface-2 hover:text-foreground"
+              : disabled
+                ? "cursor-not-allowed text-text-tertiary/40"
+                : "text-text-tertiary hover:bg-surface-2 hover:text-foreground"
           }`}
         >
           <Icon size={16} />
@@ -178,6 +185,8 @@ export default function ChatInput({
   disabled,
   maxContextChats,
   onMaxContextChatsChange,
+  supportsImageInput,
+  supportsAudioInput,
 }: Props) {
   const [value, setValue] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -208,9 +217,16 @@ export default function ChatInput({
 
   const addFiles = useCallback(async (files: FileList | File[]) => {
     const fileArr = Array.from(files);
-    const newAttachments = await Promise.all(fileArr.map(fileToAttachment));
+    const allowedFiles = fileArr.filter((file) => {
+      const type = getAttachmentType(file.type);
+      if (type === "image" && !supportsImageInput) return false;
+      if (type === "audio" && !supportsAudioInput) return false;
+      return true;
+    });
+    if (allowedFiles.length === 0) return;
+    const newAttachments = await Promise.all(allowedFiles.map(fileToAttachment));
     setAttachments((prev) => [...prev, ...newAttachments]);
-  }, []);
+  }, [supportsAudioInput, supportsImageInput]);
 
   const removeAttachment = useCallback((id: string) => {
     setAttachments((prev) => {
@@ -223,6 +239,7 @@ export default function ChatInput({
   // Handle paste for images
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
+      if (!supportsImageInput) return;
       const items = e.clipboardData?.items;
       if (!items) return;
       const imageFiles: File[] = [];
@@ -239,7 +256,23 @@ export default function ChatInput({
     };
     document.addEventListener("paste", handlePaste);
     return () => document.removeEventListener("paste", handlePaste);
-  }, [addFiles]);
+  }, [addFiles, supportsImageInput]);
+
+  useEffect(() => {
+    setAttachments((prev) => {
+      const next = prev.filter((att) => {
+        if (att.type === "image" && !supportsImageInput) return false;
+        if (att.type === "audio" && !supportsAudioInput) return false;
+        return true;
+      });
+      if (next.length === prev.length) return prev;
+      for (const att of prev) {
+        const removed = !next.some((kept) => kept.id === att.id);
+        if (removed && att.previewUrl) URL.revokeObjectURL(att.previewUrl);
+      }
+      return next;
+    });
+  }, [supportsAudioInput, supportsImageInput]);
 
   const submit = () => {
     const trimmed = value.trim();
@@ -267,6 +300,7 @@ export default function ChatInput({
 
   // Mic recording
   const toggleRecording = async () => {
+    if (!supportsAudioInput) return;
     if (isRecording) {
       // Stop recording
       mediaRecorderRef.current?.stop();
@@ -352,8 +386,9 @@ export default function ChatInput({
               {/* Upload image */}
               <IconButton
                 icon={ImagePlus}
-                label="Upload image"
-                onClick={() => imageInputRef.current?.click()}
+                label={supportsImageInput ? "Upload image" : "Image input not supported by this model"}
+                onClick={supportsImageInput ? () => imageInputRef.current?.click() : undefined}
+                disabled={!supportsImageInput}
               />
               <input
                 ref={imageInputRef}
@@ -375,9 +410,16 @@ export default function ChatInput({
               {/* Mic recording */}
               <IconButton
                 icon={isRecording ? MicOff : Mic}
-                label={isRecording ? "Stop recording" : "Voice input"}
-                onClick={toggleRecording}
-                active={isRecording}
+                label={
+                  supportsAudioInput
+                    ? isRecording
+                      ? "Stop recording"
+                      : "Voice input"
+                    : "Audio input not supported by this model"
+                }
+                onClick={supportsAudioInput ? toggleRecording : undefined}
+                active={supportsAudioInput ? isRecording : false}
+                disabled={!supportsAudioInput}
               />
 
               {/* Context window */}

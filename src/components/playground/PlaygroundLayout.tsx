@@ -8,10 +8,17 @@ import ChatArea from "./ChatArea";
 import ControlPanel from "./ControlPanel";
 import TopBar from "./TopBar";
 import ProviderModal, { isProviderConfigured, getStoredProvider, type ProviderConfig } from "./ProviderModal";
-import ModelSelectorModal, { getModelSupportedParams, getModelOutputModalities } from "./ModelSelectorModal";
+import ModelSelectorModal, { getModelSupportedParams, getModelOutputModalities, getModelInputModalities } from "./ModelSelectorModal";
 import WelcomeModal from "./WelcomeModal";
 import { type ToolDefinition } from "./ToolsModal";
 import { streamChat, summarizeTitle } from "@/lib/chatService";
+
+function supportsInputModality(modalities: string[] | null, target: "image" | "audio"): boolean {
+  if (!Array.isArray(modalities)) return true;
+  const normalized = modalities.map((m) => m.toLowerCase());
+  if (target === "audio") return normalized.includes("audio") || normalized.includes("input_audio");
+  return normalized.includes(target);
+}
 
 export default function PlaygroundLayout() {
   const store = useChatStore();
@@ -54,7 +61,10 @@ export default function PlaygroundLayout() {
   // Look up supported parameters for the current model
   const supportedParams = getModelSupportedParams(store.activeSession.model);
   const outputModalities = getModelOutputModalities(store.activeSession.model);
+  const inputModalities = getModelInputModalities(store.activeSession.model);
   const supportsImageOutput = Array.isArray(outputModalities) && outputModalities.includes("image");
+  const supportsImageInput = supportsInputModality(inputModalities, "image");
+  const supportsAudioInput = supportsInputModality(inputModalities, "audio");
 
   // Show welcome modal or provider modal on first load
   useEffect(() => {
@@ -86,14 +96,19 @@ export default function PlaygroundLayout() {
 
       const currentMessages = existingMessages ?? store.activeSession.messages;
       const isFirstMessage = currentMessages.length === 0 && !!userContent;
+      const filteredAttachments = (attachments ?? []).filter((att) => {
+        if (att.type === "image" && !supportsImageInput) return false;
+        if (att.type === "audio" && !supportsAudioInput) return false;
+        return true;
+      });
 
       // Add user message first
-      if (userContent || (attachments && attachments.length > 0)) {
+      if (userContent || filteredAttachments.length > 0) {
         store.addMessage({
           role: "user",
           content: userContent || "",
           model: store.activeSession.model,
-          attachments: attachments && attachments.length > 0 ? attachments : undefined,
+          attachments: filteredAttachments.length > 0 ? filteredAttachments : undefined,
         });
       }
 
@@ -119,14 +134,14 @@ export default function PlaygroundLayout() {
       // Build messages snapshot for the API call
       const messagesForApi: ChatMessage[] = [
         ...currentMessages,
-        ...((userContent || (attachments && attachments.length > 0))
+        ...((userContent || filteredAttachments.length > 0)
           ? [{
               id: "",
               role: "user" as const,
               content: userContent || "",
               model: store.activeSession.model,
               timestamp: Date.now(),
-              attachments: attachments && attachments.length > 0 ? attachments : undefined,
+              attachments: filteredAttachments.length > 0 ? filteredAttachments : undefined,
             }]
           : []),
       ];
@@ -198,12 +213,13 @@ export default function PlaygroundLayout() {
         controller.signal,
         supportedParams,
         outputModalities,
+        inputModalities,
         supportsImageOutput ? imageConfig : null,
       );
 
       cleanupRef.current = cleanup;
     },
-    [store, tools, supportedParams, outputModalities, supportsImageOutput, imageConfig]
+    [store, tools, supportedParams, outputModalities, inputModalities, supportsImageOutput, imageConfig, supportsImageInput, supportsAudioInput]
   );
 
   const handleSend = useCallback(
@@ -279,6 +295,8 @@ export default function PlaygroundLayout() {
           onEditMessage={handleEdit}
           maxContextChats={store.maxContextChats}
           onMaxContextChatsChange={store.setMaxContextChats}
+          supportsImageInput={supportsImageInput}
+          supportsAudioInput={supportsAudioInput}
         />
       </div>
 

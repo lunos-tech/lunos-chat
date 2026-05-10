@@ -108,8 +108,14 @@ function buildMessages(
   systemPrompt: string,
   chatMessages: ChatMessage[],
   maxContext: ContextWindowChats,
+  inputModalities?: string[] | null,
 ): ChatCompletionMessageParam[] {
   const msgs: ChatCompletionMessageParam[] = [];
+  const normalizedInputModalities = Array.isArray(inputModalities)
+    ? inputModalities.map((m) => m.toLowerCase())
+    : null;
+  const supportsImageInput = !normalizedInputModalities || normalizedInputModalities.includes("image");
+  const supportsAudioInput = !normalizedInputModalities || normalizedInputModalities.includes("audio") || normalizedInputModalities.includes("input_audio");
 
   if (systemPrompt.trim()) {
     msgs.push({ role: "system", content: systemPrompt });
@@ -127,8 +133,9 @@ function buildMessages(
           contentParts.push({ type: "text", text: m.content });
         }
 
-        // Then attachment blocks
         for (const att of m.attachments) {
+          if (att.type === "image" && !supportsImageInput) continue;
+          if (att.type === "audio" && !supportsAudioInput) continue;
           contentParts.push(attachmentToContentBlock(att));
         }
 
@@ -239,10 +246,11 @@ export function streamChat(
   signal: AbortSignal,
   supportedParams?: string[] | null,
   outputModalities?: string[] | null,
+  inputModalities?: string[] | null,
   imageConfig?: ImageConfig | null,
 ): () => void {
   const client = createClient(provider);
-  const messages = buildMessages(systemPrompt, chatMessages, maxContext);
+  const messages = buildMessages(systemPrompt, chatMessages, maxContext, inputModalities);
 
   // Helper: check if a parameter is supported by the model
   // If supportedParams is null/undefined (no data), allow everything (backward compat)
