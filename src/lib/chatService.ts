@@ -25,6 +25,7 @@ function createClient(provider: ProviderConfig): OpenAI {
     apiKey: provider.apiKey,
     baseURL: provider.baseUrl,
     dangerouslyAllowBrowser: true,
+    ...(provider.id === "lunos" && { defaultHeaders: { "x-app-id": "Web Chat" } }),
   });
 }
 
