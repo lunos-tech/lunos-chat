@@ -1,4 +1,4 @@
-import { Shield, Zap, LayoutPanelLeft, Check } from "lucide-react";
+import { Shield, Zap, LayoutPanelLeft, Check, KeyRound } from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -53,9 +53,21 @@ export default function WelcomeModal({ open, onClose }: Props) {
               <Shield size={16} />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-foreground">100% Private & Local</h3>
+              <h3 className="text-sm font-semibold text-foreground">Secure & Private</h3>
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                <strong className="text-foreground font-medium">No tracking. No accounts.</strong> All your chat history, API keys, and settings are stored locally entirely within your browser. You own your data.
+                <strong className="text-foreground font-medium">No tracking. No accounts.</strong> Your API keys are RSA-encrypted before storage — never saved in plain text. Chat history and settings stay in your browser. You own your data.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-4">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <KeyRound size={16} />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Multi-Provider Ready</h3>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                Configure multiple AI providers at once. Switch between OpenAI, Anthropic, Google, and more without re-entering your keys.
               </p>
             </div>
           </div>

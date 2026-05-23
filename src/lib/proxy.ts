@@ -7,9 +7,15 @@ let cachedPublicKey: CryptoKey | null = null;
 
 async function fetchPublicKey(): Promise<CryptoKey> {
   if (cachedPublicKey) return cachedPublicKey;
-  const res = await fetch(`${PROXY_BASE_URL}/public-key`);
-  if (!res.ok) throw new Error("Failed to fetch public key");
+  let res: Response;
+  try {
+    res = await fetch(`${PROXY_BASE_URL}/public-key`);
+  } catch {
+    throw new Error(`Cannot reach proxy server at ${PROXY_BASE_URL}. Make sure the backend is running.`);
+  }
+  if (!res.ok) throw new Error(`Public key endpoint returned ${res.status}`);
   const { publicKey } = await res.json();
+  if (!publicKey) throw new Error("Public key response is empty");
   const pem = publicKey.replace(/-----[^-]+-----/g, "").replace(/\s/g, "");
   const binary = Uint8Array.from(atob(pem), (c) => c.charCodeAt(0));
   cachedPublicKey = await crypto.subtle.importKey(
@@ -20,6 +26,21 @@ async function fetchPublicKey(): Promise<CryptoKey> {
     ["encrypt"],
   );
   return cachedPublicKey;
+}
+
+/**
+ * Prefetch and cache the public key from the proxy server.
+ * Call this early (e.g., when the provider modal opens) so encryption
+ * is ready by the time the user clicks Save.
+ * Returns true if successful, false otherwise.
+ */
+export async function prefetchPublicKey(): Promise<boolean> {
+  try {
+    await fetchPublicKey();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function encryptApiKey(apiKey: string): Promise<string> {

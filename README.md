@@ -39,34 +39,53 @@ The app will be available at `http://localhost:5173`.
 
 | Command | Description |
 |---|---|
-| `pnpm dev` | Start development server |
+| `pnpm dev` | Start frontend dev server |
 | `pnpm build` | Production build |
 | `pnpm build:dev` | Development build |
 | `pnpm preview` | Preview production build |
 | `pnpm lint` | Run ESLint |
 | `pnpm test` | Run tests (Vitest) |
 | `pnpm test:watch` | Run tests in watch mode |
+| `pnpm backend` | Start proxy server (Node.js) |
+| `pnpm backend:dev` | Start proxy with watch mode |
+| `pnpm backend:deploy` | Deploy proxy to Cloudflare Workers |
 
-## Project Structure
+## Proxy Backend
 
+The proxy backend handles RSA-encrypted API key decryption and forwards requests to upstream LLM providers. Built with **Hono** — runs on both **Cloudflare Workers** and **Node.js** (VPS).
+
+### How it works
+
+1. Frontend encrypts the user's API key with the server's RSA public key
+2. Encrypted key is sent via `x-encrypted-api-key` header on each request
+3. Proxy decrypts the key and forwards the request to the upstream provider
+
+### Running locally
+
+The proxy reads RSA keys from `backend/private.pem` and `backend/public.pem` (auto-generated on first run of the old server, or provide your own).
+
+```bash
+pnpm backend      # starts on :3001
+pnpm backend:dev  # with file watching
 ```
-src/
-├── components/
-│   ├── playground/    # Core playground components
-│   │   ├── PlaygroundLayout.tsx
-│   │   ├── ChatArea.tsx
-│   │   ├── ChatInput.tsx
-│   │   ├── ChatMessage.tsx
-│   │   ├── ChatSidebar.tsx
-│   │   ├── ControlPanel.tsx
-│   │   ├── TopBar.tsx
-│   │   ├── ModelSelectorModal.tsx
-│   │   ├── ProviderModal.tsx
-│   │   ├── ToolsModal.tsx
-│   │   └── CodeSnippetsModal.tsx
-│   └── ui/            # shadcn/ui primitives
-├── hooks/             # Custom React hooks
-├── store/             # Chat state management
-├── types/             # TypeScript type definitions
-└── pages/             # Route pages
+
+### Deploying to Cloudflare Workers
+
+```bash
+# Set RSA keys as secrets
+wrangler secret put RSA_PRIVATE_KEY --config backend/wrangler.toml
+wrangler secret put RSA_PUBLIC_KEY --config backend/wrangler.toml
+
+# Deploy
+pnpm backend:deploy
 ```
+
+### Deploying to VPS
+
+Set environment variables `RSA_PRIVATE_KEY` and `RSA_PUBLIC_KEY` with the PEM contents, then:
+
+```bash
+pnpm backend
+```
+
+Or place `private.pem` and `public.pem` files in the `backend/` directory.

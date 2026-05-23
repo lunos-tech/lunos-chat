@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Check, ExternalLink, Key, Globe } from "lucide-react";
+import { X, Check, ExternalLink, Key, Globe, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
 export interface ProviderConfig {
@@ -111,6 +111,7 @@ export default function ProviderModal({ open, onClose, onSave }: Props) {
   const [saving, setSaving] = useState(false);
   const [savedProviderIds, setSavedProviderIds] = useState<Set<string>>(new Set());
   const [usingSavedKey, setUsingSavedKey] = useState(false);
+  const [proxyReachable, setProxyReachable] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -130,6 +131,11 @@ export default function ProviderModal({ open, onClose, onSave }: Props) {
         setUsingSavedKey(false);
         setBaseUrl(DEFAULT_PROVIDERS[0].baseUrl);
       }
+
+      // Prefetch public key so encryption is ready on save
+      import("@/lib/proxy").then(({ prefetchPublicKey }) =>
+        prefetchPublicKey().then((ok) => setProxyReachable(ok))
+      );
     }
   }, [open]);
 
@@ -199,7 +205,8 @@ export default function ProviderModal({ open, onClose, onSave }: Props) {
       onSave(config);
       onClose();
     } catch (err) {
-      toast.error("Failed to encrypt API key. Please try again.");
+      const message = err instanceof Error ? err.message : "Failed to encrypt API key";
+      toast.error(message);
     } finally {
       setSaving(false);
     }
@@ -334,6 +341,18 @@ export default function ProviderModal({ open, onClose, onSave }: Props) {
               <p className="text-xs leading-relaxed text-text-secondary">
                 <span className="font-semibold text-primary">Recommended.</span> Lunos AI provides unified access to all major models with a single API key, automatic failover, and built-in rate limiting.
               </p>
+            </div>
+          )}
+
+          {/* Proxy unreachable warning */}
+          {proxyReachable === false && selectedId !== "custom" && (
+            <div className="rounded-md border border-yellow-500/30 bg-yellow-500/5 px-3 py-2.5">
+              <div className="flex items-start gap-2">
+                <AlertTriangle size={14} className="mt-0.5 shrink-0 text-yellow-500" />
+                <p className="text-xs leading-relaxed text-text-secondary">
+                  <span className="font-semibold text-yellow-500">Proxy unreachable.</span> Cannot connect to the encryption server. Make sure the backend proxy is running.
+                </p>
+              </div>
             </div>
           )}
         </div>
