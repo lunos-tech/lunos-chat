@@ -1,4 +1,4 @@
-const PROXY_BASE_URL = import.meta.env.VITE_PROXY_URL?.replace(/\/+$/, "") || "https://proxy.lunos.tech";
+const PROXY_BASE_URL = import.meta.env.VITE_PROXY_URL?.replace(/\/+$/, "") || "https://chat-proxy.lunos.tech";
 
 const PROXY_PROVIDERS = ["lunos", "openai", "anthropic", "google", "groq"];
 const ENCRYPT_PROVIDERS = ["lunos", "openai", "anthropic", "google", "groq"];

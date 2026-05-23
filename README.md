@@ -35,6 +35,23 @@ pnpm dev
 
 The app will be available at `http://localhost:5173`.
 
+## Environment Variables
+
+Create a `.env` file in the project root:
+
+```bash
+# URL of the proxy backend (handles RSA encryption & provider routing)
+VITE_PROXY_URL=http://localhost:3001
+
+# Base URL for SEO meta tags (canonical URLs, OG tags)
+VITE_SITE_URL=https://chat.lunos.tech
+```
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `VITE_PROXY_URL` | Yes | `https://chat-proxy.lunos.tech` | Proxy backend URL for public key fetching and API forwarding |
+| `VITE_SITE_URL` | No | `https://chat.lunos.tech` | Site base URL used for SEO meta tags |
+
 ## Scripts
 
 | Command | Description |
