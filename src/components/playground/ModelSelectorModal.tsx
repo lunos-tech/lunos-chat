@@ -196,13 +196,22 @@ export default function ModelSelectorModal({ open, onClose, currentModel, onSele
     setError(null);
 
     try {
-      const url = `${provider.baseUrl.replace(/\/+$/, "")}/models`;
-      const res = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${provider.apiKey}`,
-          "Content-Type": "application/json",
-        },
-      });
+      const { shouldUseProxy, getProxyBaseUrl } = await import("@/lib/proxy");
+      let url: string;
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+
+      if (shouldUseProxy(provider.id)) {
+        url = `${getProxyBaseUrl(provider.id)}/models`;
+        if (provider.encryptedApiKey) {
+          headers["x-encrypted-api-key"] = provider.encryptedApiKey;
+        }
+        if (provider.id === "lunos") headers["x-app-id"] = "Web Chat";
+      } else {
+        url = `${provider.baseUrl.replace(/\/+$/, "")}/models`;
+        headers["Authorization"] = `Bearer ${provider.apiKey}`;
+      }
+
+      const res = await fetch(url, { headers });
 
       if (!res.ok) {
         const body = await res.text().catch(() => "");
@@ -212,11 +221,22 @@ export default function ModelSelectorModal({ open, onClose, currentModel, onSele
       const json = await res.json();
 
       // Standard OpenAI response: { data: [...] }
-      const list: APIModel[] = Array.isArray(json.data)
-        ? json.data
-        : Array.isArray(json)
-        ? json
-        : [];
+      // Google AI response: { models: [...] } with different shape
+      let list: APIModel[];
+      if (Array.isArray(json.data)) {
+        list = json.data;
+      } else if (Array.isArray(json.models)) {
+        list = json.models.map((m: { name?: string; displayName?: string }) => ({
+          id: m.name?.replace(/^models\//, "") ?? "",
+          object: "model",
+          owned_by: "google",
+          ...(m.displayName && { displayName: m.displayName }),
+        }));
+      } else if (Array.isArray(json)) {
+        list = json;
+      } else {
+        list = [];
+      }
 
       // Sort alphabetically by id
       list.sort((a, b) => a.id.localeCompare(b.id));

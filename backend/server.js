@@ -16,7 +16,7 @@ if (fs.existsSync(PUB_KEY_PATH) && fs.existsSync(PRIV_KEY_PATH)) {
   privateKey = fs.readFileSync(PRIV_KEY_PATH, "utf8");
 } else {
   const pair = crypto.generateKeyPairSync("rsa", {
-    modulusLength: 1024,
+    modulusLength: 2048,
     publicKeyEncoding: { type: "spki", format: "pem" },
     privateKeyEncoding: { type: "pkcs8", format: "pem" },
   });
@@ -30,8 +30,8 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 
-// Providers that DON'T need encryption (lunos uses its own key, custom is user-managed)
-const SKIP_ENCRYPTION_PROVIDERS = ["lunos", "custom"];
+// Providers that DON'T need encryption (custom is user-managed)
+const SKIP_ENCRYPTION_PROVIDERS = ["custom"];
 
 function decryptApiKey(encryptedBase64) {
   const buffer = Buffer.from(encryptedBase64, "base64");
@@ -42,9 +42,11 @@ function decryptApiKey(encryptedBase64) {
 }
 
 const PROVIDERS = {
-  openai: "https://api.openai.com",
-  google: "https://generativelanguage.googleapis.com",
-  groq: "https://api.groq.com/openai",
+  lunos: "https://api.lunos.tech/v1",
+  openai: "https://api.openai.com/v1",
+  anthropic: "https://api.anthropic.com/v1",
+  google: "https://generativelanguage.googleapis.com/v1beta/openai",
+  groq: "https://api.groq.com/openai/v1",
 };
 
 // Endpoint: GET /public-key
@@ -64,13 +66,25 @@ app.all("/v1/:provider/*", async (req, res) => {
 
   const headers = { "content-type": "application/json" };
 
+  // Anthropic's native endpoints (e.g. /v1/models) require x-api-key + anthropic-version,
+  // not Authorization: Bearer. Set this regardless of which sub-path is being hit so model
+  // listing and any other native call work. (Anthropic's OpenAI-compat /chat/completions
+  // also accepts x-api-key, so this is safe across the board.)
+  if (provider === "anthropic") {
+    headers["anthropic-version"] = "2023-06-01";
+  }
+
   // Decrypt API key if provider requires encryption
   if (!SKIP_ENCRYPTION_PROVIDERS.includes(provider)) {
     const encrypted = req.headers["x-encrypted-api-key"];
     if (encrypted) {
       try {
         const apiKey = decryptApiKey(encrypted);
-        headers["authorization"] = `Bearer ${apiKey}`;
+        if (provider === "anthropic") {
+          headers["x-api-key"] = apiKey;
+        } else {
+          headers["authorization"] = `Bearer ${apiKey}`;
+        }
       } catch {
         return res.status(400).json({ error: "Failed to decrypt API key" });
       }
@@ -89,6 +103,9 @@ app.all("/v1/:provider/*", async (req, res) => {
     if (req.headers.authorization) headers["authorization"] = req.headers.authorization;
     if (req.headers["x-goog-api-key"]) headers["x-goog-api-key"] = req.headers["x-goog-api-key"];
   }
+
+  // Always forward x-app-id if present
+  if (req.headers["x-app-id"]) headers["x-app-id"] = req.headers["x-app-id"];
 
   try {
     const fetchOpts = { method: req.method, headers };

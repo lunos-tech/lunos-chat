@@ -1,12 +1,17 @@
 import { useState, useEffect } from "react";
 import { X, Check, ExternalLink, Key, Globe } from "lucide-react";
+import { toast } from "sonner";
 
 export interface ProviderConfig {
   id: string;
   name: string;
   baseUrl: string;
   apiKey: string;
+  encryptedApiKey?: string;
+  version?: number;
 }
+
+const CURRENT_CONFIG_VERSION = 2;
 
 const DEFAULT_PROVIDERS: (Omit<ProviderConfig, "apiKey"> & { apiKeyUrl?: string; icon?: string })[] = [
   { id: "lunos", name: "Lunos AI", baseUrl: "https://api.lunos.tech/v1", apiKeyUrl: "https://lunos.tech/dashboard", icon: "/logo.png" },
@@ -22,14 +27,17 @@ const STORAGE_KEY = "lunos-provider-config";
 export function getStoredProvider(): ProviderConfig | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    const config = JSON.parse(raw) as ProviderConfig;
+    if (config.version !== CURRENT_CONFIG_VERSION) return null;
+    return config;
   } catch {
     return null;
   }
 }
 
 export function storeProvider(config: ProviderConfig) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...config, version: CURRENT_CONFIG_VERSION }));
 }
 
 export function isProviderConfigured(): boolean {
@@ -47,6 +55,7 @@ export default function ProviderModal({ open, onClose, onSave }: Props) {
   const [apiKey, setApiKey] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
   const [showKey, setShowKey] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -72,17 +81,32 @@ export default function ProviderModal({ open, onClose, onSave }: Props) {
 
   if (!open) return null;
 
-  const handleSave = () => {
-    const provider = DEFAULT_PROVIDERS.find((p) => p.id === selectedId)!;
-    const config: ProviderConfig = {
-      id: selectedId,
-      name: provider.name,
-      baseUrl: selectedId === "custom" ? baseUrl : provider.baseUrl,
-      apiKey,
-    };
-    storeProvider(config);
-    onSave(config);
-    onClose();
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const provider = DEFAULT_PROVIDERS.find((p) => p.id === selectedId)!;
+      const config: ProviderConfig = {
+        id: selectedId,
+        name: provider.name,
+        baseUrl: selectedId === "custom" ? baseUrl : provider.baseUrl,
+        apiKey: "",
+      };
+
+      const { shouldEncrypt, encryptApiKey } = await import("@/lib/proxy");
+      if (shouldEncrypt(selectedId)) {
+        config.encryptedApiKey = await encryptApiKey(apiKey);
+      } else {
+        config.apiKey = apiKey;
+      }
+
+      storeProvider(config);
+      onSave(config);
+      onClose();
+    } catch (err) {
+      toast.error("Failed to encrypt API key. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -106,31 +130,23 @@ export default function ProviderModal({ open, onClose, onSave }: Props) {
             <label className="text-xs font-semibold tracking-wider text-text-tertiary">SELECT PROVIDER</label>
             <div className="grid grid-cols-2 gap-2">
               {DEFAULT_PROVIDERS.map((provider) => {
-                const isDisabled = ["openai", "anthropic", "google", "groq"].includes(provider.id);
                 return (
                   <button
                     key={provider.id}
-                    onClick={() => !isDisabled && setSelectedId(provider.id)}
-                    disabled={isDisabled}
+                    onClick={() => setSelectedId(provider.id)}
                     className={`flex items-center gap-2 rounded-md border px-3 py-2.5 text-left text-sm font-medium transition-colors ${selectedId === provider.id
                       ? "border-primary bg-primary/10 text-primary"
-                      : isDisabled
-                        ? "border-border bg-surface-2 text-muted-foreground opacity-50 cursor-not-allowed"
-                        : "border-border bg-surface-2 text-foreground hover:border-primary/30"
+                      : "border-border bg-surface-2 text-foreground hover:border-primary/30"
                       }`}
                   >
                     {provider.icon ? (
-                      <img src={provider.icon} alt={provider.name} className={`w-4 h-4 object-contain shrink-0 ${isDisabled ? "grayscale" : ""}`} />
+                      <img src={provider.icon} alt={provider.name} className="w-4 h-4 object-contain shrink-0" />
                     ) : (
                       <Globe size={16} className={`shrink-0 ${selectedId === provider.id ? "text-primary" : "text-muted-foreground"}`} />
                     )}
                     <span className="flex-1 truncate">{provider.name}</span>
                     {selectedId === provider.id ? (
                       <Check size={14} className="shrink-0" />
-                    ) : isDisabled ? (
-                      <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[9px] font-bold tracking-wider text-muted-foreground">
-                        SOON
-                      </span>
                     ) : provider.id === "lunos" ? (
                       <span className="shrink-0 rounded bg-primary/20 px-1.5 py-0.5 text-[9px] font-bold tracking-wider text-primary">
                         REC
@@ -216,10 +232,10 @@ export default function ProviderModal({ open, onClose, onSave }: Props) {
           </button>
           <button
             onClick={handleSave}
-            disabled={!apiKey.trim()}
+            disabled={!apiKey.trim() || saving}
             className="rounded-md bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40"
           >
-            Save Configuration
+            {saving ? "Saving..." : "Save Configuration"}
           </button>
         </div>
       </div>

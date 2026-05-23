@@ -4,6 +4,7 @@ import type { ProviderConfig } from "@/components/playground/ProviderModal";
 import type { ModelParams, ChatMessage, ContextWindowChats, Attachment, MessageReasoningDetail, GeneratedImage, ImageConfig } from "@/types/chat";
 import type { ToolDefinition } from "@/components/playground/ToolsModal";
 import { sliceMessagesForContext } from "@/types/chat";
+import { shouldUseProxy, getProxyBaseUrl } from "@/lib/proxy";
 
 type ReasoningDelta = {
   reasoning_content?: string;
@@ -21,11 +22,23 @@ type ExtraTool = { type: "web_search" };
 type RequestTool = ChatCompletionTool | ExtraTool;
 
 function createClient(provider: ProviderConfig): OpenAI {
+  if (shouldUseProxy(provider.id)) {
+    const headers: Record<string, string> = {};
+    if (provider.id === "lunos") headers["x-app-id"] = "Web Chat";
+    if (provider.encryptedApiKey) {
+      headers["x-encrypted-api-key"] = provider.encryptedApiKey;
+    }
+    return new OpenAI({
+      apiKey: "proxy",
+      baseURL: getProxyBaseUrl(provider.id),
+      dangerouslyAllowBrowser: true,
+      defaultHeaders: headers,
+    });
+  }
   return new OpenAI({
     apiKey: provider.apiKey,
     baseURL: provider.baseUrl,
     dangerouslyAllowBrowser: true,
-    ...(provider.id === "lunos" && { defaultHeaders: { "x-app-id": "Web Chat" } }),
   });
 }
 
