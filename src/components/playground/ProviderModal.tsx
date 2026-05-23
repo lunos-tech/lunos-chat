@@ -23,6 +23,59 @@ const DEFAULT_PROVIDERS: (Omit<ProviderConfig, "apiKey"> & { apiKeyUrl?: string;
 ];
 
 const STORAGE_KEY = "lunos-provider-config";
+const ALL_KEYS_STORAGE_KEY = "lunos-provider-keys";
+
+// ─── Multi-provider key storage ──────────────────────────────────────
+// Stores encrypted API keys for all providers so users don't re-enter them on switch.
+
+interface StoredProviderEntry {
+  apiKey?: string;           // Only for non-encrypted providers (custom)
+  encryptedApiKey?: string;  // RSA-encrypted key for proxy providers
+  baseUrl?: string;
+  keyHint: string;           // Last 4 chars for display (e.g., "••••ab3f")
+}
+
+interface StoredProviderKeys {
+  [providerId: string]: StoredProviderEntry;
+}
+
+function getAllStoredKeys(): StoredProviderKeys {
+  try {
+    const raw = localStorage.getItem(ALL_KEYS_STORAGE_KEY);
+    if (!raw) return {};
+    return JSON.parse(raw) as StoredProviderKeys;
+  } catch {
+    return {};
+  }
+}
+
+function maskKey(apiKey: string): string {
+  if (apiKey.length <= 4) return "••••";
+  return "••••" + apiKey.slice(-4);
+}
+
+async function storeProviderKeyEncrypted(providerId: string, apiKey: string, baseUrl?: string) {
+  const { shouldEncrypt, encryptApiKey } = await import("@/lib/proxy");
+  const all = getAllStoredKeys();
+  const entry: StoredProviderEntry = { keyHint: maskKey(apiKey) };
+
+  if (shouldEncrypt(providerId)) {
+    entry.encryptedApiKey = await encryptApiKey(apiKey);
+  } else {
+    entry.apiKey = apiKey;
+  }
+
+  if (baseUrl) entry.baseUrl = baseUrl;
+  all[providerId] = entry;
+  localStorage.setItem(ALL_KEYS_STORAGE_KEY, JSON.stringify(all));
+}
+
+export function getStoredEntryForProvider(providerId: string): StoredProviderEntry | null {
+  const all = getAllStoredKeys();
+  return all[providerId] ?? null;
+}
+
+// ─── Active provider storage ─────────────────────────────────────────
 
 export function getStoredProvider(): ProviderConfig | null {
   try {
@@ -56,17 +109,25 @@ export default function ProviderModal({ open, onClose, onSave }: Props) {
   const [baseUrl, setBaseUrl] = useState("");
   const [showKey, setShowKey] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savedProviderIds, setSavedProviderIds] = useState<Set<string>>(new Set());
+  const [usingSavedKey, setUsingSavedKey] = useState(false);
 
   useEffect(() => {
     if (open) {
+      // Load which providers have saved keys
+      const allKeys = getAllStoredKeys();
+      setSavedProviderIds(new Set(Object.keys(allKeys)));
+
       const stored = getStoredProvider();
       if (stored) {
         setSelectedId(stored.id);
-        setApiKey(stored.apiKey);
+        setApiKey("");
+        setUsingSavedKey(true);
         setBaseUrl(stored.baseUrl);
       } else {
         setSelectedId("lunos");
         setApiKey("");
+        setUsingSavedKey(false);
         setBaseUrl(DEFAULT_PROVIDERS[0].baseUrl);
       }
     }
@@ -76,6 +137,22 @@ export default function ProviderModal({ open, onClose, onSave }: Props) {
     const provider = DEFAULT_PROVIDERS.find((p) => p.id === selectedId);
     if (provider && provider.id !== "custom") {
       setBaseUrl(provider.baseUrl);
+    }
+    // Check if this provider has a saved encrypted key
+    const savedEntry = getStoredEntryForProvider(selectedId);
+    if (savedEntry) {
+      setUsingSavedKey(true);
+      setApiKey("");
+      if (selectedId === "custom" && savedEntry.baseUrl) {
+        setBaseUrl(savedEntry.baseUrl);
+      }
+    } else {
+      setUsingSavedKey(false);
+      // Only clear if switching away from the currently active provider
+      const active = getStoredProvider();
+      if (active?.id !== selectedId) {
+        setApiKey("");
+      }
     }
   }, [selectedId]);
 
@@ -92,12 +169,31 @@ export default function ProviderModal({ open, onClose, onSave }: Props) {
         apiKey: "",
       };
 
+      // If using a previously saved key (no new key entered), restore from stored entry
+      if (usingSavedKey && !apiKey.trim()) {
+        const savedEntry = getStoredEntryForProvider(selectedId);
+        if (savedEntry) {
+          if (savedEntry.encryptedApiKey) {
+            config.encryptedApiKey = savedEntry.encryptedApiKey;
+          } else if (savedEntry.apiKey) {
+            config.apiKey = savedEntry.apiKey;
+          }
+          storeProvider(config);
+          onSave(config);
+          onClose();
+          return;
+        }
+      }
+
       const { shouldEncrypt, encryptApiKey } = await import("@/lib/proxy");
       if (shouldEncrypt(selectedId)) {
         config.encryptedApiKey = await encryptApiKey(apiKey);
       } else {
         config.apiKey = apiKey;
       }
+
+      // Persist encrypted key to multi-provider store for quick switching
+      await storeProviderKeyEncrypted(selectedId, apiKey, selectedId === "custom" ? baseUrl : undefined);
 
       storeProvider(config);
       onSave(config);
@@ -147,6 +243,8 @@ export default function ProviderModal({ open, onClose, onSave }: Props) {
                     <span className="flex-1 truncate">{provider.name}</span>
                     {selectedId === provider.id ? (
                       <Check size={14} className="shrink-0" />
+                    ) : savedProviderIds.has(provider.id) ? (
+                      <Key size={12} className="shrink-0 text-green-500" />
                     ) : provider.id === "lunos" ? (
                       <span className="shrink-0 rounded bg-primary/20 px-1.5 py-0.5 text-[9px] font-bold tracking-wider text-primary">
                         REC
@@ -173,22 +271,40 @@ export default function ProviderModal({ open, onClose, onSave }: Props) {
                 </a>
               )}
             </div>
-            <div className="relative">
-              <Key size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
-              <input
-                type={showKey ? "text" : "password"}
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder={`Enter your ${DEFAULT_PROVIDERS.find((p) => p.id === selectedId)?.name} API key`}
-                className="w-full rounded-md border border-border bg-surface-2 py-2.5 pl-9 pr-16 font-mono text-xs text-foreground placeholder:text-text-tertiary focus:border-primary/40 focus:outline-none"
-              />
-              <button
-                onClick={() => setShowKey(!showKey)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded px-2 py-1 text-[10px] font-medium text-text-tertiary hover:text-foreground"
-              >
-                {showKey ? "HIDE" : "SHOW"}
-              </button>
-            </div>
+            {usingSavedKey && !apiKey.trim() ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 rounded-md border border-green-500/30 bg-green-500/5 px-3 py-2.5">
+                  <Key size={14} className="text-green-500" />
+                  <span className="flex-1 font-mono text-xs text-foreground">
+                    {getStoredEntryForProvider(selectedId)?.keyHint ?? "••••••••"}
+                  </span>
+                  <span className="rounded bg-green-500/20 px-1.5 py-0.5 text-[9px] font-bold text-green-500">SAVED</span>
+                </div>
+                <button
+                  onClick={() => { setUsingSavedKey(false); setApiKey(""); }}
+                  className="text-[10px] font-medium text-primary hover:underline"
+                >
+                  Enter a new key instead
+                </button>
+              </div>
+            ) : (
+              <div className="relative">
+                <Key size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
+                <input
+                  type={showKey ? "text" : "password"}
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder={`Enter your ${DEFAULT_PROVIDERS.find((p) => p.id === selectedId)?.name} API key`}
+                  className="w-full rounded-md border border-border bg-surface-2 py-2.5 pl-9 pr-16 font-mono text-xs text-foreground placeholder:text-text-tertiary focus:border-primary/40 focus:outline-none"
+                />
+                <button
+                  onClick={() => setShowKey(!showKey)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded px-2 py-1 text-[10px] font-medium text-text-tertiary hover:text-foreground"
+                >
+                  {showKey ? "HIDE" : "SHOW"}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Base URL (editable for custom) */}
@@ -232,7 +348,7 @@ export default function ProviderModal({ open, onClose, onSave }: Props) {
           </button>
           <button
             onClick={handleSave}
-            disabled={!apiKey.trim() || saving}
+            disabled={(!apiKey.trim() && !usingSavedKey) || saving}
             className="rounded-md bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40"
           >
             {saving ? "Saving..." : "Save Configuration"}
