@@ -13,8 +13,9 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "backend": "node backend/server.js",
-    "backend:dev": "node --watch backend/server.js"
+    "backend": "tsx backend/src/node.ts",
+    "backend:dev": "tsx --watch backend/src/node.ts",
+    "backend:deploy": "wrangler deploy --config backend/wrangler.toml"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -51,11 +52,11 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
-    "cors": "2.8.5",
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.6.0",
-    "express": "4.21.2",
     "framer-motion": "^11.0.0",
+    "hono": "^4.7.11",
+    "@hono/node-server": "^1.14.1",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.462.0",
     "next-themes": "^0.3.0",
@@ -97,6 +98,7 @@
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",
+    "tsx": "^4.19.4",
     "vite": "^5.4.19",
     "vitest": "^3.2.4",
     "wrangler": "^4.20.0"

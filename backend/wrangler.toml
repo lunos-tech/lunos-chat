@@ -1,0 +1,7 @@
+name = "lunos-proxy"
+main = "src/worker.ts"
+compatibility_date = "2026-05-10"
+
+# Set RSA keys as secrets:
+#   wrangler secret put RSA_PRIVATE_KEY
+#   wrangler secret put RSA_PUBLIC_KEY
