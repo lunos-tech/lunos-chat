@@ -181,7 +181,7 @@ export default function ChatSidebar({ sessions, activeId, onSelect, onNew, onDel
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <a href="https://github.com/superXdev/lunos" target="_blank" rel="noopener noreferrer" className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground">
+                  <a href="https://github.com/superXdev/lunos-chat" target="_blank" rel="noopener noreferrer" className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground">
                     <Github size={14} />
                   </a>
                 </TooltipTrigger>
