@@ -50,7 +50,7 @@ function generateSnippet(
   baseUrl?: string | null
 ): string {
   const escaped = (s: string) => s.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n");
-  const normalizedBase = (baseUrl && baseUrl.trim() ? baseUrl.trim() : "https://api.lunos.tech/v1").replace(/\/+$/, "");
+  const normalizedBase = (baseUrl && baseUrl.trim() ? baseUrl.trim() : "https://api.lunosrouter.com/v1").replace(/\/+$/, "");
   const endpoint = normalizedBase.endsWith("/chat/completions") ? normalizedBase : `${normalizedBase}/chat/completions`;
 
   switch (lang) {

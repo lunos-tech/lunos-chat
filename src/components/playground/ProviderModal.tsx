@@ -14,7 +14,7 @@ export interface ProviderConfig {
 const CURRENT_CONFIG_VERSION = 2;
 
 const DEFAULT_PROVIDERS: (Omit<ProviderConfig, "apiKey"> & { apiKeyUrl?: string; icon?: string })[] = [
-  { id: "lunos", name: "Lunos AI", baseUrl: "https://api.lunos.tech/v1", apiKeyUrl: "https://lunos.tech/dashboard", icon: "/logo.png" },
+  { id: "lunos", name: "Lunos AI", baseUrl: "https://api.lunosrouter.com/v1", apiKeyUrl: "https://lunosrouter.com/dashboard", icon: "/logo.png" },
   { id: "openai", name: "OpenAI", baseUrl: "https://api.openai.com/v1", apiKeyUrl: "https://platform.openai.com/api-keys", icon: "/provider/openai.png" },
   { id: "anthropic", name: "Anthropic", baseUrl: "https://api.anthropic.com/v1", apiKeyUrl: "https://console.anthropic.com/settings/keys", icon: "/provider/anthropic.svg" },
   { id: "google", name: "Google AI", baseUrl: "https://generativelanguage.googleapis.com/v1", apiKeyUrl: "https://aistudio.google.com/app/apikey", icon: "/provider/gemini.svg" },

@@ -4,7 +4,7 @@
 
 Lunos Playground is a developer-grade AI chat playground for testing prompts, comparing LLM outputs, tuning model parameters, and generating API integration code. It runs entirely in the browser with no backend — all state (sessions, API keys, settings) is persisted in `localStorage`. The app connects directly to OpenAI-compatible API endpoints configured by the user.
 
-**Live URL:** https://chat.lunos.tech  
+**Live URL:** https://chat.lunosrouter.com  
 **Repository:** https://github.com/superXdev/lunos
 
 ---

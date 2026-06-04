@@ -1,4 +1,4 @@
-export const SEO_BASE_URL = (import.meta.env.VITE_SITE_URL as string | undefined)?.replace(/\/+$/, "") || "https://chat.lunos.tech";
+export const SEO_BASE_URL = (import.meta.env.VITE_SITE_URL as string | undefined)?.replace(/\/+$/, "") || "https://chat.lunosrouter.com";
 
 export interface SeoMetaInput {
   title: string;

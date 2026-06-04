@@ -166,12 +166,12 @@ export default function ChatSidebar({ sessions, activeId, onSelect, onNew, onDel
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="h-2 w-2 rounded-full bg-primary" />
-              <a href="https://lunos.tech" target="_blank" rel="noopener noreferrer" className="font-mono text-xs text-text-tertiary hover:text-primary transition-colors">lunos.tech</a>
+              <a href="https://lunosrouter.com" target="_blank" rel="noopener noreferrer" className="font-mono text-xs text-text-tertiary hover:text-primary transition-colors">lunosrouter.com</a>
             </div>
             <div className="flex items-center gap-1">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <a href="https://lunos.tech" target="_blank" rel="noopener noreferrer" className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground">
+                  <a href="https://lunosrouter.com" target="_blank" rel="noopener noreferrer" className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground">
                     <Globe size={14} />
                   </a>
                 </TooltipTrigger>

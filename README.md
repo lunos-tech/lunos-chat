@@ -44,13 +44,13 @@ Create a `.env` file in the project root:
 VITE_PROXY_URL=http://localhost:3001
 
 # Base URL for SEO meta tags (canonical URLs, OG tags)
-VITE_SITE_URL=https://chat.lunos.tech
+VITE_SITE_URL=https://chat.lunosrouter.com
 ```
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `VITE_PROXY_URL` | Yes | `https://chat-proxy.lunos.tech` | Proxy backend URL for public key fetching and API forwarding |
-| `VITE_SITE_URL` | No | `https://chat.lunos.tech` | Site base URL used for SEO meta tags |
+| `VITE_PROXY_URL` | Yes | `https://chat-proxy.lunosrouter.com` | Proxy backend URL for public key fetching and API forwarding |
+| `VITE_SITE_URL` | No | `https://chat.lunosrouter.com` | Site base URL used for SEO meta tags |
 
 ## Scripts
 

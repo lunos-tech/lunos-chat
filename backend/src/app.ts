@@ -12,7 +12,7 @@ const app = new Hono<{ Bindings: Bindings }>();
 app.use("*", cors());
 
 const PROVIDERS: Record<string, string> = {
-  lunos: "https://api.lunos.tech/v1",
+  lunos: "https://api.lunosrouter.com/v1",
   openai: "https://api.openai.com/v1",
   anthropic: "https://api.anthropic.com/v1",
   google: "https://generativelanguage.googleapis.com/v1beta/openai",
